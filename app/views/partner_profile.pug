@@ -1,0 +1,46 @@
+doctype html
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        title Partner Profile - Local Service Provider
+        link(rel="stylesheet", href="/partner/partner.css")
+        link(rel="stylesheet", href="/css/style.css")
+    body
+        div.partner-panel
+            div.sidebar
+                h2 Partner Dashboard
+                nav
+                    ul
+                        li: a(href="/partner/dashboard") Dashboard
+                        li: a(href="/partner/bookings") Bookings
+                        li: a(href="/partner/profile", class="active") Profile
+                        li: a(href="#", id="partner-logout-btn") Logout
+            div.main-content
+                header
+                    h1 Manage Profile
+                main
+                    div.form-container(style="max-width: 800px; margin: 0 auto; background-color: #fff; padding: 2rem; border-radius: 10px; box-shadow: var(--shadow);")
+                        h3 Profile Details
+                        form#partner-profile-form
+                            div.form-group
+                                label(for="profile-name") Full Name
+                                input(type="text", id="profile-name", required)
+                            div.form-group
+                                label(for="profile-email") Email
+                                input(type="email", id="profile-email", disabled)
+                            div.form-group
+                                label(for="profile-description") Work Description / Experience
+                                textarea(id="profile-description", required)
+                            div.form-group
+                                label(for="profile-pricing") Pricing (e.g., "£50/hour, £100 for a specific job")
+                                input(type="text", id="profile-pricing", required)
+                            div.form-group
+                                label(for="profile-image-url") Profile Image URL
+                                input(type="text", id="profile-image-url", placeholder="Direct URL to your profile image")
+                            div.form-group
+                                label(for="work-images-url") Work Images URLs (comma separated)
+                                textarea(id="work-images-url", placeholder="URL1, URL2, URL3")
+                            button(type="submit", class="button") Update Profile
+
+        script(src="/partner/partner.js")
