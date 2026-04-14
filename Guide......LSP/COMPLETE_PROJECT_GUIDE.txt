@@ -1,0 +1,82 @@
+# SERVICE BOOKING SYSTEM - COMPLETE PROJECT GUIDE
+
+This guide explains how to run, test, and manage your project.
+
+---
+
+## 1. HOW TO START THE PROJECT
+Open your terminal in the project folder and run:
+   docker-compose down -v
+   docker-compose up --build
+
+Wait until you see "Server running at http://127.0.0.1:3000/".
+
+---
+
+## 2. WEBPAGE ACCESS (URLs)
+- Customer (Main):  http://localhost:3000/index.html
+- Admin Dashboard:  http://localhost:3000/admin/index.html
+- Partner Dashboard: http://localhost:3000/partner/index.html
+
+---
+
+## 3. LOGIN CREDENTIALS
+
+### ADMIN (Full Control)
+- Email: admin@gmail.com
+- Password: admin
+- Use this to: Add Services, Approve Partners, View Bookings.
+
+### SAMPLE CUSTOMERS (For Testing)
+- Rahul: rahul@gmail.com (Password: user123)
+- Priya: priya@gmail.com (Password: user456)
+
+### SAMPLE PARTNERS (For Testing)
+- CleanHome: cleanhome@gmail.com (Password: partner123)
+- FixIt: fixit@gmail.com (Password: partner456)
+
+---
+
+## 4. HOW TO HANDLE THE OTP (OTP PROCESS)
+When a customer signs up, the website will ask for an OTP. 
+Since this is a test environment, you can get the OTP directly from the database:
+
+1. Open phpMyAdmin: http://localhost:8082
+2. Click on database: 'service_booking'
+3. Click on table: 'otps'
+4. Find the email you used and copy the 6-digit 'otp' code.
+5. Paste that code into the website's OTP verification page.
+
+---
+
+## 5. COMPLETE WORKFLOW (Step-by-Step)
+
+Step 1: ADD SERVICES
+   - Login as ADMIN (admin@gmail.com / admin).
+   - Go to 'Services' and add (e.g., Cleaning, Plumbing, Electrician).
+   - Partners cannot sign up unless a service already exists.
+
+Step 2: PARTNER SIGNUP
+   - Go to the Partner Signup page (http://localhost:3000/partner/signup.html).
+   - Fill out the form and select a service.
+   - NOTE: The partner cannot login yet! They are "Pending".
+
+Step 3: APPROVE PARTNER
+   - Login as ADMIN again.
+   - Go to 'Partners' section.
+   - Click "Approve" next to the new partner.
+
+Step 4: CUSTOMER SIGNUP & BOOKING
+   - Go to Customer Signup (http://localhost:3000/signup.html).
+   - Verify the OTP (see Section 4 above).
+   - Login as Customer and you can now book the Approved Partner.
+
+---
+
+## 6. DATABASE MANAGEMENT (phpMyAdmin)
+URL: http://localhost:8082
+- Server: db
+- Username: root
+- Password: rootpassword
+
+Use this to view all your users, partners, bookings, and OTPs in real-time.

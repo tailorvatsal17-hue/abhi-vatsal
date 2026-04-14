@@ -1,0 +1,19 @@
+extends layout
+
+block content
+    section.form-section
+        div.form-container
+            h2 Create Your Account
+            form.signup-form
+                div.form-group
+                    label(for="email") Email
+                    input(type="email", name="email", id="email", placeholder="youremail@example.com", required)
+                div.form-group
+                    label(for="password") Password
+                    input(type="password", name="password", id="password", placeholder="Create a strong password", required)
+                button(type="submit", class="button") Sign Up
+            p Already have an account? 
+                a(href="/login") Login here
+
+block scripts
+    script(src="/js/signup.js")

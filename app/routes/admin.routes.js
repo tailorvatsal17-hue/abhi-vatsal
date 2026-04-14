@@ -1,0 +1,55 @@
+module.exports = app => {
+    const router = require('express').Router();
+    const admin = require('../controllers/admin.controller.js');
+    const { verifyToken } = require('../middleware/authJwt');
+    const requireAdmin = require('../middleware/requireAdmin');
+
+    // Public route for admin login
+    router.post('/login', admin.login);
+
+    // Apply verifyToken + requireAdmin middleware to all routes below this line
+    router.use(verifyToken);
+    router.use(requireAdmin);
+
+    // Get admin dashboard
+    router.get('/dashboard', admin.getDashboard);
+
+    // Get all users
+    router.get('/users', admin.getAllUsers);
+
+    // Get all partners
+    router.get('/partners', admin.getAllPartners);
+
+    // Update partner details (includes approval, description, pricing)
+    router.put('/partners/:id', admin.updatePartner);
+
+    // Approve partner
+    router.put('/partners/approve/:id', admin.approvePartner);
+
+    // Suspend/restore partners
+    router.put('/partners/suspend', admin.suspendPartner);
+    router.put('/partners/restore', admin.restorePartner);
+
+    // Block/unblock users
+    router.put('/users/block', admin.blockUser);
+    router.put('/users/unblock', admin.unblockUser);
+
+    // Manage service categories
+    router.post('/services', admin.createService);
+    router.put('/services/:id', admin.updateService);
+    router.delete('/services/:id', admin.deleteService);
+
+    // Get all bookings
+    router.get('/bookings', admin.getAllBookings);
+
+    // Cancel booking
+    router.put('/bookings/cancel/:id', admin.cancelBooking);
+
+    // Update booking status
+    router.put('/bookings/:id/status', admin.updateBookingStatus);
+
+    // Logout
+    router.post('/logout', admin.logout);
+
+    app.use('/api/admin', router);
+};

@@ -1,0 +1,16 @@
+# Sample Customer Data (Customer Signup)
+# URL: http://localhost:3000/signup.html
+
+1.  Name: Rahul Sharma
+    Email: rahul@gmail.com
+    Password: user123
+
+2.  Name: Priya Gupta
+    Email: priya@gmail.com
+    Password: user456
+
+3.  Name: Amit Singh
+    Email: amit@gmail.com
+    Password: user789
+
+Note: Customers must verify their OTP (if enabled in your code) or just login after signup.

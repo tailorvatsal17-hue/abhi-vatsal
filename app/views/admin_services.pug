@@ -1,0 +1,57 @@
+doctype html
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        title Manage Services - Local Service Provider Admin
+        link(rel="stylesheet", href="/admin/admin.css")
+        link(rel="stylesheet", href="/css/style.css")
+    body
+        div.admin-panel
+            div.sidebar
+                h2 Local Service Provider Admin
+                nav
+                    ul
+                        li: a(href="/admin/dashboard") Dashboard
+                        li: a(href="/admin/users") Users
+                        li: a(href="/admin/partners") Partners
+                        li: a(href="/admin/services", class="active") Services
+                        li: a(href="/admin/bookings") Bookings
+                        li: a(href="#", id="admin-logout-btn") Logout
+            div.main-content
+                header
+                    h1 Manage Services
+                main
+                    div.add-service-form(style="margin-bottom: 2rem; background-color: #fff; padding: 1.5rem; border-radius: 10px; box-shadow: var(--shadow);")
+                        h3 Add New Service
+                        form#add-service-form(style="display: flex; gap: 1rem; align-items: center;")
+                            input(type="text", id="service-name", placeholder="Service Name", required, style="padding: 0.8rem; flex-grow: 1;")
+                            input(type="text", id="service-desc", placeholder="Description", style="padding: 0.8rem; flex-grow: 2;")
+                            input(type="text", id="service-image", placeholder="Image URL (optional)", style="padding: 0.8rem; flex-grow: 2;")
+                            button(type="submit", class="button") Add Service
+                    
+                    h3 Existing Services
+                    div#services-table
+                        if services && services.length > 0
+                            table.admin-table
+                                thead
+                                    tr
+                                        th ID
+                                        th Name
+                                        th Description
+                                        th Image
+                                tbody
+                                    each service in services
+                                        tr
+                                            td= service.id
+                                            td= service.name
+                                            td= service.description
+                                            td
+                                                if service.image
+                                                    img(src=service.image, alt=service.name, style="width: 50px;")
+                                                else
+                                                    span No Image
+                        else
+                            p No services found.
+
+        script(src="/admin/admin.js")

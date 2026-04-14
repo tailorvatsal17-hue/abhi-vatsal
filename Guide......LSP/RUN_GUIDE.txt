@@ -1,0 +1,29 @@
+# Service Booking System - Run Guide
+
+## 1. How to Start the Application
+Open your terminal in the project root and run:
+docker-compose up --build
+
+## 2. Webpage Access
+Once the containers are running, you can access the three main areas here:
+
+- Main Website (User): http://localhost:3000/index.html
+- Admin Dashboard:      http://localhost:3000/admin/index.html
+- Partner Dashboard:    http://localhost:3000/partner/index.html
+
+## 3. Database Management (phpMyAdmin)
+Access the database interface here:
+URL: http://localhost:8082
+
+### Credentials:
+- Server: db (Use 'db' as the server name if prompted)
+- Username: root
+- Password: rootpassword
+
+Alternatively, you can use the non-root user:
+- Username: user
+- Password: password
+
+## 4. Troubleshooting Port Conflicts
+If port 3000, 3309, or 8082 are already in use, you can modify them in the 'docker-compose.yml' file.
+Current Database Host Port: 3309 (mapped to 3306 inside container)

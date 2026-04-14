@@ -1,0 +1,81 @@
+// Notification display component
+// Include this in customer and partner dashboards
+
+div.notifications-container(style="max-width: 500px; margin-bottom: 2rem;")
+    div.notifications-header(style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;")
+        h3(style="margin: 0;") 
+            | Notifications 
+            span.badge(id="notification-count", style="background: #ff6b6b; color: white; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; margin-left: 0.5rem;") 0
+        button#clear-notifications-btn(type="button", style="background: none; border: none; color: #666; cursor: pointer; font-size: 0.9rem;") Clear All
+
+    div#notifications-list(style="max-height: 400px; overflow-y: auto; background: #f9f9f9; border-radius: 8px;")
+        p(style="text-align: center; color: #999; padding: 1rem;") Loading notifications...
+
+script.
+    // Configuration
+    const isPartner = window.location.pathname.includes('/partner/');
+    const apiBase = isPartner ? '/api/notifications/partner' : '/api/notifications/customer';
+    const token = localStorage.getItem(isPartner ? 'partnerToken' : 'customerToken');
+
+    // Fetch notifications
+    async function loadNotifications() {
+        try {
+            const headers = { 'Authorization': `Bearer ${token}` };
+            const response = await fetch(`${apiBase}/notifications?limit=10`, { headers });
+            const notifications = await response.json();
+
+            // Display notifications
+            const list = document.getElementById('notifications-list');
+            if (notifications.length === 0) {
+                list.innerHTML = '<p style="text-align: center; color: #999; padding: 1rem;">No notifications</p>';
+            } else {
+                list.innerHTML = notifications.map(n => `
+                    <div style="padding: 1rem; border-bottom: 1px solid #eee; cursor: pointer; background: ${n.is_read ? '#fff' : '#fffbf0'};}" 
+                         onclick="markAsRead(${n.id})">
+                        <div style="font-weight: bold; color: #333;">${n.title}</div>
+                        <div style="font-size: 0.9rem; color: #666; margin-top: 0.25rem;">${n.message}</div>
+                        <div style="font-size: 0.75rem; color: #999; margin-top: 0.5rem;">${new Date(n.created_at).toLocaleString()}</div>
+                    </div>
+                `).join('');
+            }
+
+            // Update unread count
+            const countResponse = await fetch(`${apiBase}/notifications/unread`, { headers });
+            const countData = await countResponse.json();
+            document.getElementById('notification-count').textContent = countData.unreadCount;
+        } catch (error) {
+            console.error('Error loading notifications:', error);
+        }
+    }
+
+    // Mark notification as read
+    async function markAsRead(notificationId) {
+        try {
+            const headers = { 'Authorization': `Bearer ${token}` };
+            await fetch(`${apiBase}/notifications/${notificationId}/read`, {
+                method: 'PUT',
+                headers
+            });
+            loadNotifications(); // Refresh
+        } catch (error) {
+            console.error('Error marking as read:', error);
+        }
+    }
+
+    // Clear all notifications
+    document.getElementById('clear-notifications-btn').addEventListener('click', async () => {
+        try {
+            const headers = { 'Authorization': `Bearer ${token}` };
+            await fetch(`${apiBase}/notifications/read-all`, {
+                method: 'PUT',
+                headers
+            });
+            loadNotifications(); // Refresh
+        } catch (error) {
+            console.error('Error clearing notifications:', error);
+        }
+    });
+
+    // Load notifications on page load and refresh every 30 seconds
+    loadNotifications();
+    setInterval(loadNotifications, 30000);

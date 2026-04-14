@@ -1,0 +1,125 @@
+/**
+ * Express Application Bootstrap
+ * 
+ * This file sets up the Express.js application with:
+ * - Middleware configuration
+ * - View engine setup
+ * - Route mounting
+ * - Error handling
+ * 
+ * All routes are mounted here in the correct order.
+ * Business logic stays in controllers, not here.
+ */
+
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+
+// Create Express app
+const app = express();
+
+/**
+ * ============================================================
+ * MIDDLEWARE CONFIGURATION (Order matters!)
+ * ============================================================
+ */
+
+// Trust proxy for production deployment
+app.set('trust proxy', 1);
+
+// CORS middleware - allow cross-origin requests
+app.use(cors());
+
+// Body parsing middleware - parse JSON and URL-encoded data
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+/**
+ * ============================================================
+ * VIEW ENGINE SETUP
+ * ============================================================
+ */
+
+// Set Pug as the template engine
+app.set('view engine', 'pug');
+
+// Set views directory using path.join for cross-platform compatibility
+app.set('views', path.join(__dirname, 'views'));
+
+/**
+ * ============================================================
+ * STATIC FILES
+ * ============================================================
+ */
+
+// Serve static files (CSS, JS, images) from /static directory
+app.use(express.static(path.join(__dirname, '../static')));
+
+/**
+ * ============================================================
+ * ROUTE MOUNTING (Order matters!)
+ * ============================================================
+ */
+
+// API Routes - Mount first (before catch-all view routes)
+require('./routes/auth.routes')(app);
+require('./routes/service.routes')(app);
+require('./routes/partner.routes')(app);
+require('./routes/booking.routes')(app);
+require('./routes/profile.routes')(app);
+require('./routes/admin.routes')(app);
+
+// View Routes - Mount after API routes
+require('./routes/views.routes')(app);
+
+/**
+ * ============================================================
+ * ERROR HANDLING
+ * ============================================================
+ */
+
+// 404 Handler - Catch undefined routes
+app.use((req, res) => {
+  res.status(404).render('404', {
+    title: 'Page Not Found',
+    message: `The page you're looking for doesn't exist.`,
+    requestedUrl: req.originalUrl
+  });
+});
+
+// Global Error Handler - Must be last middleware
+// IMPORTANT: 4 parameters (err, req, res, next) tells Express this is an error handler
+app.use((err, req, res, next) => {
+  // Log error for debugging
+  console.error('Global Error Handler:', err);
+
+  // Default to 500 status code
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || 'Internal Server Error';
+
+  // For API requests, return JSON
+  if (req.path.startsWith('/api/')) {
+    return res.status(status).json({
+      status,
+      message,
+      error: process.env.NODE_ENV === 'development' ? err : {}
+    });
+  }
+
+  // For page requests, render error page
+  res.status(status).render('error', {
+    title: 'Error',
+    status,
+    message,
+    error: process.env.NODE_ENV === 'development' ? err : {}
+  });
+});
+
+/**
+ * ============================================================
+ * EXPORT APP
+ * ============================================================
+ */
+
+// Export app for use in index.js
+module.exports = app;

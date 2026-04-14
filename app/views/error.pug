@@ -1,0 +1,22 @@
+extends layout
+
+block content
+  .container.my-5
+    .row
+      .col-md-8.mx-auto
+        .card.border-danger
+          .card-body
+            h1.card-title
+              span.badge.bg-danger= status
+              | Error
+            p.card-text.lead= message
+            if error && error.message
+              .alert.alert-warning.mt-3
+                strong Error Details (Development Only):
+                pre
+                  code= error.message
+                if error.stack
+                  pre
+                    code= error.stack
+            .mt-4
+              a.btn.btn-primary(href='/') ← Back to Home
