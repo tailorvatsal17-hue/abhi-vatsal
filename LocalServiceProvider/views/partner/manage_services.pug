@@ -1,0 +1,166 @@
+extends ../layout
+
+block styles
+    style.
+        .services-container {
+            max-width: 900px;
+            margin: 2rem auto;
+            background: #fff;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+        .add-service-box {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            border: 1px solid #dee2e6;
+        }
+        .service-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid #eee;
+        }
+        .service-list-item:last-child {
+            border-bottom: none;
+        }
+        .price-badge {
+            background: var(--primary-color);
+            color: #fff;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+block content
+    section.manage-services-section
+        div.container
+            div.services-container
+                h2 Manage My Services
+                p(style="color: #666; margin-bottom: 2rem;") Add or remove the services you offer to customers.
+
+                div.add-service-box
+                    h3 Add a Service
+                    form#add-partner-service-form
+                        div.form-grid(style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;")
+                            div.form-group
+                                label(for="service-id") Service Category
+                                select#service-id(name="service_id", required, style="width: 100%; padding: 0.8rem;")
+                                    option(value="") Select a service...
+                                    if services
+                                        each s in services
+                                            option(value=s.id)= s.name
+                            div.form-group
+                                label(for="price") Price (GBP £)
+                                input#price(type="number", name="price", step="0.01", min="0", placeholder="e.g. 50.00", required, style="width: 100%; padding: 0.8rem;")
+                        
+                        div.form-group(style="margin-bottom: 1rem;")
+                            label(for="description") Custom Description
+                            textarea#description(name="description", placeholder="Describe your expertise in this specific service...", rows="3", style="width: 100%; padding: 0.8rem;")
+                        
+                        button.button(type="submit", style="width: 100%;") Add Service
+
+                div.my-services-list
+                    h3 Services You Currently Offer
+                    div#services-table-container
+                        p Loading your services...
+
+block scripts
+    script.
+        document.addEventListener('DOMContentLoaded', () => {
+            const addForm = document.getElementById('add-partner-service-form');
+            const servicesContainer = document.getElementById('services-table-container');
+            const token = localStorage.getItem('partnerToken');
+
+            const fetchMyServices = async () => {
+                try {
+                    const response = await fetch('/api/partners/services/my', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const myServices = await response.json();
+                    
+                    if (myServices.length === 0) {
+                        servicesContainer.innerHTML = '<p>You haven\'t added any specific services yet.</p>';
+                        return;
+                    }
+
+                    let html = '<div class="service-list">';
+                    myServices.forEach(item => {
+                        html += `
+                            <div class="service-list-item">
+                                <div>
+                                    <h4 style="margin: 0;">${item.service_name}</h4>
+                                    <p style="margin: 0.2rem 0; color: #666; font-size: 0.9rem;">${item.description || 'No custom description'}</p>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <span class="price-badge">£${item.price}</span>
+                                    <button class="button-danger delete-service-btn" data-id="${item.id}" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Delete</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    servicesContainer.innerHTML = html;
+
+                    document.querySelectorAll('.delete-service-btn').forEach(btn => {
+                        btn.addEventListener('click', async () => {
+                            if (confirm('Are you sure you want to remove this service?')) {
+                                const id = btn.dataset.id;
+                                const res = await fetch(`/api/partners/services/${id}`, {
+                                    method: 'DELETE',
+                                    headers: { 'Authorization': `Bearer ${token}` }
+                                });
+                                if (res.ok) {
+                                    fetchMyServices();
+                                }
+                            }
+                        });
+                    });
+                } catch (err) {
+                    servicesContainer.innerHTML = '<p>Error loading your services.</p>';
+                }
+            };
+
+            addForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = {
+                    service_id: document.getElementById('service-id').value,
+                    price: document.getElementById('price').value,
+                    description: document.getElementById('description').value
+                };
+
+                const submitBtn = addForm.querySelector('button');
+                submitBtn.disabled = true;
+                submitBtn.innerText = 'Adding...';
+
+                try {
+                    const response = await fetch('/api/partners/services', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}` 
+                        },
+                        body: JSON.stringify(formData)
+                    });
+
+                    if (response.ok) {
+                        alert('Service added successfully!');
+                        addForm.reset();
+                        fetchMyServices();
+                    } else {
+                        const errData = await response.json();
+                        alert('Error: ' + errData.message);
+                    }
+                } catch (err) {
+                    alert('An unexpected error occurred.');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Add Service';
+                }
+            });
+
+            fetchMyServices();
+        });

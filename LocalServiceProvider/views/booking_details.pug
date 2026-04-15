@@ -1,0 +1,127 @@
+extends layout
+
+block styles
+    style.
+        .details-container {
+            max-width: 800px;
+            margin: 2rem auto;
+            background: #fff;
+            padding: 2.5rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-confirmed { background: #d4edda; color: #155724; }
+        .status-cancelled { background: #f8d7da; color: #721c24; }
+        .status-completed { background: #d1ecf1; color: #0c5460; }
+        .status-paid { background: #cce5ff; color: #004085; }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            color: #666;
+            font-weight: 500;
+        }
+        .detail-value {
+            font-weight: 600;
+            text-align: right;
+        }
+        .action-btn {
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 1rem;
+            width: 100%;
+            font-weight: bold;
+            transition: opacity 0.3s;
+        }
+        .cancel-btn { background-color: #dc3545; }
+        .pay-btn { background-color: #28a745; }
+        .action-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        #receipt-section {
+            margin-top: 2rem;
+            padding: 1.5rem;
+            border: 2px dashed #ccc;
+            background: #fdfdfd;
+        }
+
+block content
+    script(src="https://checkout.razorpay.com/v1/checkout.js")
+    section.booking-details-section
+        div.container
+            div.details-container
+                h2(style="margin-bottom: 0.5rem;") Booking Details
+                div(style="background: #fff3cd; color: #856404; padding: 0.5rem; border-radius: 5px; margin-bottom: 1rem; font-size: 0.9rem; font-weight: bold; border: 1px solid #ffeeba;")
+                    i ⚠️ Demo Payment Mode: No real money will be charged.
+                p(style="color: #666; margin-bottom: 2rem;") Track your service request progress below.
+
+                div.status-info
+                    p Loading status...
+                
+                div.details-grid
+                    p Loading booking details...
+
+                div#action-buttons
+                
+                div#review-section(style="display: none; margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 2rem;")
+                    h3 Rate & Review the Professional
+                    form#review-form
+                        div.form-group(style="margin-bottom: 1rem;")
+                            label(for="rating") Rating (1-5)
+                            select#rating(name="rating", required, style="width: 100%; padding: 0.5rem;")
+                                option(value="") Select a rating
+                                option(value="5") 5 - Excellent
+                                option(value="4") 4 - Very Good
+                                option(value="3") 3 - Good
+                                option(value="2") 2 - Fair
+                                option(value="1") 1 - Poor
+                        div.form-group(style="margin-bottom: 1rem;")
+                            label(for="comment") Your Feedback
+                            textarea#comment(name="comment", placeholder="Tell us about your experience...", rows="4", style="width: 100%; padding: 0.5rem;")
+                        button.button(type="submit", style="width: 100%;") Submit Review
+
+                div#chat-section(style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 2rem;")
+                    h3 Chat with Professional
+                    div#chat-window(style="height: 300px; overflow-y: scroll; border: 1px solid #eee; padding: 1rem; background: #f9f9f9; border-radius: 8px; margin-bottom: 1rem;")
+                        p Loading messages...
+                    form#chat-form(style="display: flex; gap: 0.5rem;")
+                        input#chat-message(type="text", placeholder="Type your message...", required, style="flex-grow: 1; padding: 0.8rem; border-radius: 5px; border: 1px solid #ccc;")
+                        button.button(type="submit") Send
+
+                div#receipt-section(style="display: none;")
+                    h3 Payment Receipt
+                    div#receipt-content
+                    button.button(onclick="window.print()", style="margin-top: 1rem;") Print Receipt
+
+                div#raise-dispute-section(style="margin-top: 2rem; border-top: 1px solid var(--border-color); padding-top: 2rem;")
+                    h3 Report an Issue (Dispute)
+                    form#dispute-form
+                        div.form-group(style="margin-bottom: 1rem;")
+                            label(for="dispute-reason") Reason for Dispute
+                            textarea#dispute-reason(name="reason", placeholder="Please explain the issue in detail...", required, rows="3", style="width: 100%; padding: 0.5rem;")
+                        button.button-danger(type="submit", style="width: 100%;") Submit Dispute
+
+block scripts
+    script.
+        // The main logic is handled in main.js

@@ -1,0 +1,34 @@
+doctype html
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        title Manage Disputes - Admin
+        link(rel="stylesheet", href="/admin/admin.css")
+        link(rel="stylesheet", href="/css/style.css")
+    body
+        div.admin-panel
+            div.sidebar
+                h2 Local Service Provider Admin
+                nav
+                    ul
+                        li: a(href="/admin/dashboard") Dashboard
+                        li: a(href="/admin/users") Users
+                        li: a(href="/admin/partners") Partners
+                        li: a(href="/admin/withdrawals") Withdrawals
+                        li: a(href="/admin/payments") Payments
+                        li: a(href="/admin/categories") Categories
+                        li: a(href="/admin/disputes", class="active") Disputes
+                        li: a(href="/admin/services") Services
+                        li: a(href="/admin/bookings") Bookings
+                        li: a(href="#", id="admin-logout-btn") Logout
+            div.main-content
+                header
+                    h1 Dispute Resolution
+                main
+                    div.disputes-management
+                        p Review and resolve disputes raised by customers or partners.
+                        div#disputes-table-container
+                            p Loading disputes...
+
+        script(src="/admin/admin.js")

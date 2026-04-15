@@ -1,0 +1,44 @@
+doctype html
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        title Partner Bookings - Local Service Provider
+        link(rel="stylesheet", href="/partner/partner.css")
+        link(rel="stylesheet", href="/css/style.css")
+    body
+        div.partner-panel
+            div.sidebar
+                h2 Partner Dashboard
+                nav
+                    ul
+                        li: a(href="/partner/dashboard") Dashboard
+                        li: a(href="/partner/bookings", class="active") Bookings
+                        li: a(href="/partner/profile") Profile
+                        li: a(href="/partner/services") Manage Services
+                        li: a(href="/partner/documents") Verification Documents
+                        li: a(href="#", id="partner-logout-btn") Logout
+            div.main-content
+                header
+                    h1 Booking Requests
+                main
+                    div.filter-container(style="margin-bottom: 2rem;")
+                        select#booking-status-filter(style="padding: 0.8rem;")
+                            option(value="all") All Statuses
+                            option(value="Pending") Pending
+                            option(value="Confirmed") Confirmed
+                            option(value="Completed") Completed
+                            option(value="Cancelled") Cancelled
+                    div#bookings-management-table
+
+        div#chat-modal.modal(style="display: none;")
+            div.modal-content(style="max-width: 600px;")
+                span.close-modal#close-chat-modal &times;
+                h2 Chat with Customer
+                div#partner-chat-window(style="height: 400px; overflow-y: scroll; border: 1px solid #eee; padding: 1rem; background: #f9f9f9; border-radius: 8px; margin-bottom: 1rem;")
+                    p Loading messages...
+                form#partner-chat-form(style="display: flex; gap: 0.5rem;")
+                    input#partner-chat-message(type="text", placeholder="Type your message...", required, style="flex-grow: 1; padding: 0.8rem; border-radius: 5px; border: 1px solid #ccc;")
+                    button.button(type="submit") Send
+
+        script(src="/partner/partner.js")

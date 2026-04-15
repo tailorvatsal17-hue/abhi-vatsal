@@ -1,0 +1,90 @@
+doctype html
+html(lang="en")
+    head
+        meta(charset="UTF-8")
+        meta(name="viewport", content="width=device-width, initial-scale=1.0")
+        title Partner Dashboard - Local Service Provider
+        link(rel="stylesheet", href="/partner/partner.css")
+        link(rel="stylesheet", href="/css/style.css")
+    body
+        div.partner-panel
+            div.sidebar
+                h2 Partner Dashboard
+                nav
+                    ul
+                        li: a(href="/partner/dashboard", class="active") Dashboard
+                        li: a(href="#earnings-section", id="earnings-link") Earnings
+                        li: a(href="#withdrawal-section", id="withdrawal-link") Withdraw Funds
+                        li: a(href="/partner/bookings") Bookings
+                        li: a(href="/partner/profile") Profile
+                        li: a(href="/partner/services") Manage Services
+                        li: a(href="/partner/documents") Verification Documents
+                        li: a(href="#availability-management", id="availability-link") Availability
+                        li: a(href="#", id="partner-logout-btn") Logout
+            div.main-content
+                header
+                    h1 Dashboard
+                main
+                    div.dashboard-stats
+                        div.stat-card
+                            h3 Total Bookings
+                            p#total-bookings 0
+                        div.stat-card
+                            h3 Pending Bookings
+                            p#pending-bookings 0
+                        div.stat-card
+                            h3 Completed Bookings
+                            p#completed-bookings 0
+                        div.stat-card
+                            h3 Total Earnings
+                            p#total-earnings £0
+                    div.recent-bookings
+                        h2 Recent Booking Requests
+                        div#bookings-table
+
+                    div#earnings-section.earnings-section(style="display: none;")
+                        h2 Detailed Earnings
+                        div.stat-card(style="max-width: 300px; margin-bottom: 2rem;")
+                            h3 Cumulative Revenue
+                            p#detailed-total-earnings £0
+                        
+                        h3 Recent Transactions
+                        div#earnings-table-container
+                            p No transactions found.
+
+                    div#withdrawal-section.withdrawal-section(style="display: none;")
+                        h2 Withdraw Funds
+                        div.stat-card(style="max-width: 300px; margin-bottom: 2rem;")
+                            h3 Available for Withdrawal
+                            p#available-balance £0
+                        
+                        div.add-service-box(style="margin-bottom: 2rem;")
+                            h3 Request Withdrawal
+                            form#withdrawal-request-form
+                                div.form-group
+                                    label(for="withdrawal-amount") Amount to Withdraw (GBP £):
+                                    input(type="number", id="withdrawal-amount", step="0.01", min="1", required, style="width: 100%; padding: 0.8rem; margin-bottom: 1rem;")
+                                button.button(type="submit", style="width: 100%;") Submit Request
+
+                        h3 Withdrawal History
+                        div#withdrawal-history-container
+                            p No withdrawal requests found.
+
+                    div#availability-management.availability-section
+                        h2 Manage Availability
+                        form#add-availability-form.availability-form
+                            label(for="available-date") Date:
+                            input(type="date", id="available-date", required)
+
+                            label(for="start-time") Start Time:
+                            input(type="time", id="start-time", required)
+
+                            label(for="end-time") End Time:
+                            input(type="time", id="end-time", required)
+
+                            button(type="submit") Add Availability
+
+                        h3 Your Available Slots
+                        div#availability-table-container.availability-table
+
+        script(src="/partner/partner.js")

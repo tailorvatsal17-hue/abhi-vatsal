@@ -1,0 +1,77 @@
+extends layout
+
+block styles
+    style.
+        .profile-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 3rem;
+            align-items: flex-start;
+        }
+        .profile-nav {
+            background-color: var(--secondary-color);
+            padding: 1.5rem;
+            border-radius: 10px;
+        }
+        .profile-content {
+            background-color: var(--secondary-color);
+            padding: 2rem;
+            border-radius: 10px;
+        }
+        .profile-nav h3, .profile-content h3 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .booking-item {
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 0;
+        }
+        .booking-item:last-child {
+            border-bottom: none;
+        }
+
+block content
+    section.profile-section
+        div.container
+            h2.section-title My Profile
+            div.profile-grid
+                div.profile-nav
+                    h3 Account Details
+                    div.user-details
+                        if user
+                            p: strong Email: 
+                                span= user.email
+                            p: strong Member Since: 
+                                span= new Date(user.created_at).toLocaleDateString()
+                        else
+                            p Loading user details...
+
+                    h3 My Addresses
+                    div.user-addresses
+                        if addresses && addresses.length > 0
+                            ul
+                                each addr in addresses
+                                    li= `${addr.address}, ${addr.city || ''}`
+                        else
+                            p No saved addresses.
+                
+                div.profile-content
+                    h3 My Bookings
+                    div.user-bookings
+                        if bookings && bookings.length > 0
+                            each booking in bookings
+                                div.booking-item
+                                    p: strong Booking ID: 
+                                        span= booking.booking_id
+                                    p: strong Service: 
+                                        span= `${booking.service_name} with ${booking.partner_name}`
+                                    p: strong Date: 
+                                        span= `${new Date(booking.booking_date).toLocaleDateString()} at ${booking.booking_time}`
+                                    p: strong Status: 
+                                        span(class=booking.status.toLowerCase())= booking.status
+                                    p: strong Total Cost: 
+                                        span= `£${booking.total_cost}`
+                        else
+                            p You have no past or upcoming bookings.
