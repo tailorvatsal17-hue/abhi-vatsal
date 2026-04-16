@@ -146,17 +146,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     };
 
-    if (window.location.pathname.endsWith('index.html') || window.location.pathname.endsWith('/') || window.location.pathname.endsWith('/local/client/')) {
+    if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/' || window.location.pathname.endsWith('/local/client/')) {
         initHeroAnimation();
-    }
-
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            localStorage.removeItem('token');
-            localStorage.removeItem('userId'); // Also remove userId
-            updateAuthUI(); // Update UI after logout
-            window.location.href = '/login';
-        });
     }
 
     // --- Signup ---
@@ -193,7 +184,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- OTP Verification ---
-    // This is a simplified example. You would have a separate page or a modal for OTP.
     if (otpForm) {
         otpForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -248,100 +238,174 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // --- Fetch and display partners on the partners page ---
-    if (window.location.pathname === '/partners') {
-        const partnerList = document.querySelector('.partner-list');
+    // --- Unified Search and Filter Logic (Services & Partners Pages) ---
+    const isSearchPage = window.location.pathname === '/partners' || window.location.pathname === '/services';
+    
+    if (isSearchPage) {
+        const partnerList = document.getElementById('partner-list');
         const urlParams = new URLSearchParams(window.location.search);
-        const initialServiceId = urlParams.get('service_id');
-        const searchKeyword = urlParams.get('search');
+        
+        let currentServiceId = urlParams.get('service_id');
+        const searchKeyword = urlParams.get('search') || urlParams.get('keyword');
+        const initialCategoryId = urlParams.get('category_id') || urlParams.get('category');
 
         const filterForm = document.querySelector('.filter-form');
         const applyFiltersBtn = document.querySelector('#apply-filters');
         const resetFiltersBtn = document.querySelector('#reset-filters');
-        const searchForm = document.querySelector('.services-section .search-form');
+        const searchForm = document.getElementById('partners-search-form') || document.getElementById('services-search-form');
+        const resultsCountText = document.getElementById('results-count');
 
-        const updatePartners = async () => {
+        const updateResults = async (serviceIdOverride = null) => {
             const keyword = document.querySelector('#search-input')?.value || '';
             const categoryId = document.querySelector('#filter-category')?.value || '';
-            const minPrice = document.querySelector('#min-price')?.value || '';
-            const maxPrice = document.querySelector('#max-price')?.value || '';
-            const minRating = document.querySelector('#filter-rating')?.value || '0';
+            const serviceId = serviceIdOverride !== null ? serviceIdOverride : currentServiceId;
+
+            // Show loading state
+            if (partnerList) {
+                partnerList.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 5rem 0;">
+                        <div class="spinner" style="width: 50px; height: 50px; border: 4px solid #f3f3f3; border-top: 4px solid var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1.5rem;"></div>
+                        <p style="color: #64748b; font-weight: 600; font-size: 1.1rem;">Finding the best professionals for you...</p>
+                    </div>`;
+            }
 
             let queryParams = new URLSearchParams();
             if (keyword) queryParams.append('keyword', keyword);
             if (categoryId) queryParams.append('category_id', categoryId);
-            if (minPrice) queryParams.append('min_price', minPrice);
-            if (maxPrice) queryParams.append('max_price', maxPrice);
-            if (minRating) queryParams.append('min_rating', minRating);
+            if (serviceId) queryParams.append('service_id', serviceId);
 
-            const response = await fetch(`/api/services/search?${queryParams.toString()}`);
-            const partners = await response.json();
-
-            if (partnerList) {
-                if (partners.length === 0) {
-                    partnerList.innerHTML = '<p style="text-align: center;">No professionals found for this selection.</p>';
-                    return;
+            try {
+                const response = await fetch(`/api/partners?${queryParams.toString()}`);
+                
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const errorMessage = `Error ${response.status}: ${errorData.message || 'Server Error'}`;
+                    alert(errorMessage); // Show specific error to user
+                    throw new Error(errorMessage);
                 }
-                partnerList.innerHTML = '';
-                partners.forEach(partner => {
-                    const partnerDiv = document.createElement('div');
-                    partnerDiv.classList.add('partner-item');
-                    const profileImg = partner.profile_image || 'https://via.placeholder.com/300x200?text=Professional';
+                
+                const partners = await response.json();
+
+                if (partnerList) {
+                    if (partners.length === 0) {
+                        partnerList.innerHTML = `
+                            <div class="no-results" style="grid-column: 1 / -1; text-align: center; padding: 6rem 2rem; background: #fff; border-radius: 24px; border: 2px dashed #e2e8f0;">
+                                <div style="font-size: 4rem; margin-bottom: 1.5rem; opacity: 0.2;">🕵️‍♂️</div>
+                                <h3 style="color: #334155; font-size: 1.5rem; margin-bottom: 0.75rem;">No professionals found</h3>
+                                <p style="color: #64748b; font-size: 1.1rem;">Try adjusting your filters or search terms.</p>
+                            </div>`;
+                        if (resultsCountText) resultsCountText.textContent = '0 professionals found';
+                        return;
+                    }
+
+                    if (resultsCountText) resultsCountText.textContent = `Showing ${partners.length} professional${partners.length > 1 ? 's' : ''}`;
                     
-                    partnerDiv.innerHTML = `
-                        <img src="${profileImg}" alt="${partner.partner_name || partner.name}">
-                        <div class="partner-item-content">
-                            <h4>${partner.partner_name || partner.name}</h4>
-                            <p>${partner.description}</p>
-                            <p><strong>Pricing:</strong> £${partner.pricing}</p>
-                            <p><strong>Rating:</strong> ${partner.rating || 'N/A'} ⭐</p>
-                            <div style="display: flex; gap: 0.5rem;">
-                                <a href="/booking?partner_id=${partner.id}&service_id=${partner.service_id}" class="button" style="flex: 1;">Book Now</a>
-                                <a href="/partners/${partner.id}" class="button" style="flex: 1; background-color: var(--secondary-color); color: var(--text-color); border: 1px solid var(--border-color);">View Profile</a>
+                    partnerList.innerHTML = '';
+                    partners.forEach(partner => {
+                        const partnerDiv = document.createElement('div');
+                        partnerDiv.classList.add('partner-card-new');
+                        
+                        const profileImg = partner.profile_image || 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?q=80&w=500&auto=format&fit=crop';
+                        const rating = partner.rating ? parseFloat(partner.rating).toFixed(1) : 'New';
+                        
+                        partnerDiv.innerHTML = `
+                            <div class="card-image-wrapper">
+                                <img src="${profileImg}" alt="${partner.partner_name || partner.name}">
+                                <div class="rating-badge">
+                                    <i class="fas fa-star"></i>
+                                    ${rating}
+                                </div>
                             </div>
-                        </div>
-                    `;
-                    partnerList.appendChild(partnerDiv);
-                });
+                            <div class="card-content">
+                                <h4>${partner.partner_name || partner.name}</h4>
+                                <div class="service-category-tag">${partner.category_name || 'Professional'}</div>
+                                <p>${partner.description || 'Experienced professional dedicated to delivering exceptional results for all your service needs.'}</p>
+                                
+                                <div class="card-footer">
+                                    <div class="pricing-info">
+                                        <span>FROM</span>
+                                        <div class="price-value">£${partner.pricing}</div>
+                                    </div>
+                                    <div class="card-actions">
+                                        <a href="/booking?partner_id=${partner.id}&service_id=${partner.service_id}" class="button">Book</a>
+                                        <a href="/partners/${partner.id}" class="button-secondary">See Professional</a>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        partnerList.appendChild(partnerDiv);
+                    });
+                }
+            } catch (error) {
+                console.error("Search error:", error);
+                if (partnerList) {
+                    partnerList.innerHTML = `
+                        <div style="grid-column: 1 / -1; text-align: center; padding: 5rem 2rem; background: #fff; border-radius: 20px; border: 1px solid #fee2e2; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                            <h3 style="color: #991b1b; margin-bottom: 0.5rem; font-weight: 700;">Unable to load data</h3>
+                            <p style="color: #b91c1c; margin-bottom: 1.5rem;">Please try again later.</p>
+                            <button onclick="window.location.reload()" class="button" style="background: #ef4444; border: none; padding: 0.75rem 2rem; border-radius: 10px; font-weight: 700; color: #fff; cursor: pointer;">Retry</button>
+                        </div>`;
+                }
             }
         };
 
-        if (applyFiltersBtn) {
-            applyFiltersBtn.addEventListener('click', updatePartners);
+        // Handle initial load if params exist
+        if (searchKeyword || currentServiceId || initialCategoryId) {
+            const searchInput = document.querySelector('#search-input');
+            if (searchInput && searchKeyword) searchInput.value = searchKeyword;
+            
+            const categorySelect = document.querySelector('#filter-category');
+            if (categorySelect && initialCategoryId) categorySelect.value = initialCategoryId;
+            
+            updateResults();
         }
 
-        if (resetFiltersBtn) {
-            resetFiltersBtn.addEventListener('click', () => {
-                filterForm.reset();
-                if (searchForm) searchForm.reset();
-                updatePartners();
-            });
-        }
-
+        // Handle search form submission
         if (searchForm) {
             searchForm.addEventListener('submit', (e) => {
                 e.preventDefault();
-                updatePartners();
+                updateResults();
             });
         }
 
-        // Initial fetch if search params exist
-        if (searchKeyword || initialServiceId) {
-            if (searchKeyword) document.querySelector('#search-input').value = searchKeyword;
-            if (initialServiceId) document.querySelector('#filter-category').value = initialServiceId;
-            updatePartners();
+        // Handle sidebar filters
+        if (applyFiltersBtn) applyFiltersBtn.addEventListener('click', () => updateResults());
+        if (resetFiltersBtn) {
+            resetFiltersBtn.addEventListener('click', () => {
+                if (filterForm) filterForm.reset();
+                if (searchForm) searchForm.reset();
+                currentServiceId = null;
+                window.history.replaceState({}, document.title, window.location.pathname);
+                updateResults();
+            });
         }
+
+        // Handle "See Professional" clicks on SERVICE cards (same page transition)
+        document.addEventListener('click', (e) => {
+            const btn = e.target.closest('.see-pro-btn');
+            if (btn && btn.getAttribute('href') && btn.getAttribute('href').includes('service_id=')) {
+                e.preventDefault();
+                const serviceId = btn.getAttribute('href').split('service_id=')[1];
+                currentServiceId = serviceId;
+                updateResults();
+            }
+        });
     }
 
-    // --- Handle search on other pages ---
+    // --- Handle search on other pages (Home page, etc.) ---
     const globalSearchForms = document.querySelectorAll('.search-form');
     globalSearchForms.forEach(form => {
-        if (form.closest('.services-section')) return; // Already handled above
+        // Skip forms already handled by specific page logic
+        if (form.id === 'services-search-form' || form.id === 'partners-search-form') return;
         
         form.addEventListener('submit', (e) => {
             e.preventDefault();
-            const keyword = form.querySelector('input').value;
-            window.location.href = `/partners?search=${keyword}`;
+            const input = form.querySelector('input');
+            if (input) {
+                const keyword = input.value;
+                window.location.href = `/partners?search=${encodeURIComponent(keyword)}`;
+            }
         });
     });
 

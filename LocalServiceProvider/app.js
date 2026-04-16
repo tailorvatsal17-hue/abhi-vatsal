@@ -61,15 +61,37 @@ app.get("/services", async function(req, res) {
 app.get("/partners", async function(req, res) {
     try {
         const serviceId = req.query.service_id;
-        let query = "SELECT * FROM partners WHERE is_approved = 1";
-        let params = [];
-        if (serviceId) {
-            query += " AND service_id = ?";
-            params.push(serviceId);
-        }
-        const partners = await db.query(query, params);
+        const categoryId = req.query.category_id;
+        const search = req.query.search;
+        const maxPrice = req.query.max_price;
+        const minPrice = req.query.min_price;
+        const minRating = req.query.min_rating;
+        
         const categories = await db.query("SELECT * FROM service_categories");
-        res.render("partners", { title: "Find Professionals", partners, categories });
+
+        // We'll use the Service model search logic if any filters are present
+        if (serviceId || categoryId || search || maxPrice || minPrice || minRating) {
+            const Service = require('./models/service.model.js');
+            const filters = {
+                service_id: serviceId,
+                category_id: categoryId,
+                keyword: search,
+                max_price: maxPrice,
+                min_price: minPrice,
+                min_rating: minRating
+            };
+            
+            Service.search(filters, (err, partners) => {
+                if (err) {
+                    console.error("Search error in route:", err);
+                    return res.render("partners", { title: "Find Professionals", partners: [], categories });
+                }
+                res.render("partners", { title: "Find Professionals", partners, categories });
+            });
+        } else {
+            const partners = await db.query("SELECT * FROM partners WHERE is_approved = 1");
+            res.render("partners", { title: "Find Professionals", partners, categories });
+        }
     } catch (err) {
         console.error(err);
         res.status(500).send("Error fetching partners");

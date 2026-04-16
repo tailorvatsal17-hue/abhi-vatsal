@@ -18,6 +18,6 @@ block content
                             h3= service.name
                             p(style="color: #666; margin-bottom: 1.5rem;")= service.description
                             p.price(style="font-weight: bold; font-size: 1.2rem; color: var(--primary-color); margin-bottom: 1.5rem;") From £#{service.base_price}
-                            a.button(href=`/partners?service_id=${service.id}`) Find Professionals
+                            a.button(href=`/partners?service_id=${service.id}`) See Professional
                 else
                     p(style="text-align: center; grid-column: 1 / -1;") No specific services found in this category.

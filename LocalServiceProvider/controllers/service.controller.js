@@ -15,22 +15,26 @@ exports.getAll = (req, res) => {
 // Search for services
 exports.search = (req, res) => {
     const filters = {
-        keyword: req.query.keyword,
-        category_id: req.query.category_id,
-        min_price: req.query.min_price,
-        max_price: req.query.max_price,
-        min_rating: req.query.min_rating
+        keyword: req.query.keyword || req.query.search,
+        category_id: req.query.category_id || req.query.category,
+        service_id: req.query.service_id,
+        min_price: req.query.min_price || req.query.min,
+        max_price: req.query.max_price || req.query.max,
+        min_rating: req.query.min_rating || req.query.rating
     };
 
     Service.search(filters, (err, data) => {
-        if (err)
+        if (err) {
+            console.error("Search API Error:", err);
             res.status(500).send({
-                message:
-                    err.message || "Some error occurred while searching for services."
+                message: err.message || "Some error occurred while retrieving partners."
             });
-        else res.send(data);
+        } else {
+            res.send(data);
+        }
     });
 };
+
 
 // Get all partners for a service
 exports.getPartners = (req, res) => {

@@ -1,5 +1,26 @@
 const Partner = require('../models/partner.model.js');
 const Booking = require('../models/booking.model.js');
+const Service = require('../models/service.model.js');
+
+// Search for partners/professionals
+exports.search = (req, res) => {
+    const filters = {
+        keyword: req.query.keyword || req.query.search,
+        category_id: req.query.category_id || req.query.category,
+        service_id: req.query.service_id
+    };
+
+    Service.search(filters, (err, data) => {
+        if (err) {
+            console.error("Partner API Search Error:", err);
+            res.status(500).send({
+                message: "Unable to load data. Please try again."
+            });
+        } else {
+            res.send(data);
+        }
+    });
+};
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const emailService = require('../services/email.service.js');

@@ -1,57 +1,67 @@
 extends layout
 
 block content
-    section.services-section
+    section.partners-search-section
         div.container
-            h2.section-title Find a Professional
-            div.search-bar(style="max-width: 800px; margin: 0 auto 3rem auto;")
-                form.search-form(style="box-shadow: none; border: 1px solid var(--border-color);")
-                    input(type="text", placeholder="Search for professionals or locations...", id="search-input")
-                    button(type="submit") Search
-            
-            div.partners-page-layout(style="display: grid; grid-template-columns: 250px 1fr; gap: 2rem;")
-                aside.filter-sidebar(style="background: var(--secondary-color); padding: 1.5rem; border-radius: 10px; height: fit-content;")
-                    h3(style="margin-top: 0; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem;") Filters
+            //- Search Header
+            div.top-search-header
+                h2.section-title Find Local Professionals
+                div.search-bar-container
+                    form.search-form(id="partners-search-form")
+                        i.fas.fa-search
+                        input(type="text", placeholder="What service are you looking for? (e.g. Plumbing, Cleaning)", id="search-input")
+                        button(type="submit") Search
+
+            div.partners-page-layout
+                //- LEFT: Filter Sidebar
+                aside.filter-sidebar
+                    h3
+                        i.fas.fa-sliders-h
+                        | Filter Results
+                    
                     form.filter-form
-                        div.filter-group(style="margin-bottom: 1.5rem;")
-                            label(style="display: block; margin-bottom: 0.5rem; font-weight: bold;") Category
-                            select#filter-category(style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px;")
+                        div.filter-group
+                            label Category
+                            select#filter-category
                                 option(value="") All Categories
                                 if categories
                                     each cat in categories
                                         option(value=cat.id)= cat.name
                         
-                        div.filter-group(style="margin-bottom: 1.5rem;")
-                            label(style="display: block; margin-bottom: 0.5rem; font-weight: bold;") Price Range
-                            div(style="display: flex; gap: 0.5rem; align-items: center;")
-                                input#min-price(type="number", placeholder="Min", style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px;")
-                                span -
-                                input#max-price(type="number", placeholder="Max", style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px;")
-                        
-                        div.filter-group(style="margin-bottom: 1.5rem;")
-                            label(style="display: block; margin-bottom: 0.5rem; font-weight: bold;") Min Rating
-                            select#filter-rating(style="width: 100%; padding: 0.5rem; border: 1px solid var(--border-color); border-radius: 5px;")
-                                option(value="0") All Ratings
-                                option(value="4") 4+ Stars
-                                option(value="3") 3+ Stars
-                                option(value="2") 2+ Stars
-                        
-                        button.button(type="button", id="apply-filters", style="width: 100%;") Apply Filters
-                        button(type="button", id="reset-filters", style="width: 100%; background: none; border: 1px solid var(--border-color); margin-top: 0.5rem; padding: 0.5rem; border-radius: 5px; cursor: pointer;") Reset
+                        button.button(type="button", id="apply-filters") Apply Filters
+                        button(type="button", id="reset-filters") Reset
 
-                div.partner-list
-                if partners && partners.length > 0
-                    each partner in partners
-                        div.partner-item
-                            - var profileImg = partner.profile_image || 'https://via.placeholder.com/300x200?text=Professional'
-                            img(src=profileImg, alt=partner.name)
-                            div.partner-item-content
-                                h4= partner.name
-                                p= partner.description
-                                p: strong Pricing: £#{partner.pricing}
-                                p: strong Rating: #{partner.rating || 'N/A'} ⭐
-                                div(style="display: flex; gap: 0.5rem;")
-                                    a.button(href=`/booking?partner_id=${partner.id}&service_id=${partner.service_id}`, style="flex: 1;") Book Now
-                                    a.button(href=`/partners/${partner.id}`, style="flex: 1; background-color: var(--secondary-color); color: var(--text-color); border: 1px solid var(--border-color);") View Profile
-                else
-                    p(style="text-align: center;") No professionals found for this selection.
+                //- RIGHT: Results Grid
+                div.partner-results-area
+                    div.results-info
+                        p#results-count
+                    
+                    div.partner-grid(id="partner-list")
+                        if partners && partners.length > 0
+                            each partner in partners
+                                div.partner-card-new
+                                    div.card-image-wrapper
+                                        - var profileImg = partner.profile_image || 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?q=80&w=500&auto=format&fit=crop'
+                                        img(src=profileImg, alt=partner.name)
+                                        div.rating-badge
+                                            i.fas.fa-star
+                                            | #{partner.rating ? parseFloat(partner.rating).toFixed(1) : 'New'}
+                                    
+                                    div.card-content
+                                        h4= partner.partner_name || partner.name
+                                        div.service-category-tag= partner.category_name || 'Professional'
+                                        p= partner.description || 'Experienced professional dedicated to delivering exceptional results for all your service needs.'
+                                        
+                                        div.card-footer
+                                            div.pricing-info
+                                                span FROM
+                                                div.price-value £#{partner.pricing}
+                                            
+                                            div.card-actions
+                                                a.button(href=`/booking?partner_id=${partner.id}&service_id=${partner.service_id}`) Book
+                                                a.button-secondary(href=`/partners/${partner.id}`) See Professional
+
+                            div.no-results
+                                div.icon 🕵️‍♂️
+                                h3 No professionals found
+                                p Try adjusting your filters or search terms to find what you're looking for.
