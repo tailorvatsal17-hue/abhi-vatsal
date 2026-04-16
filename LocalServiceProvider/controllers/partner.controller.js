@@ -2,6 +2,8 @@ const Partner = require('../models/partner.model.js');
 const Booking = require('../models/booking.model.js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const emailService = require('../services/email.service.js');
+const db = require('../models/db.js');
 
 // Signup
 exports.signup = (req, res) => {
@@ -12,7 +14,7 @@ exports.signup = (req, res) => {
         });
     }
 
-    const { name, email, phone, password, service_id } = req.body;
+    const { name, email, phone, password, service_id, description, pricing } = req.body;
 
     // Email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -51,30 +53,138 @@ exports.signup = (req, res) => {
                 });
             }
 
-            // Create a Partner
-            const partner = new Partner({
-                name: name,
-                email: email,
-                password: hash,
-                phone: phone,
-                service_id: service_id,
-                is_approved: 0 // Explicitly set to 0 (Pending)
-            });
+            // Check if OTP was sent recently (Spam protection - 1 minute)
+            db.query("SELECT created_at FROM otps WHERE email = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 MINUTE)", [email], (err, spamCheck) => {
+                if (spamCheck && spamCheck.length > 0) {
+                    return res.status(429).send({ message: "Please wait at least 1 minute before requesting another OTP." });
+                }
 
-            // Save Partner in the database
-            Partner.create(partner, (err, data) => {
-                if (err)
-                    res.status(500).send({
-                        message:
-                            err.message || "Some error occurred while creating the Partner."
-                    });
-                else res.status(201).send({
-                    message: "Registration successful! Your account is pending admin approval.",
-                    data: data
+                // Generate OTP
+                const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+                // Create a Partner object (not yet in DB)
+                const partner = new Partner({
+                    name: name,
+                    email: email,
+                    password: hash,
+                    phone: phone,
+                    service_id: service_id,
+                    description: description,
+                    pricing: pricing,
+                    is_approved: 0,
+                    is_verified: 0
+                });
+
+                // Store partner data and OTP in temporary table
+                db.query("INSERT INTO otps (email, otp, user_data) VALUES (?, ?, ?)", [email, otp, JSON.stringify(partner)], async (err, result) => {
+                    if (err) {
+                        console.error("Partner Signup DB Error:", err);
+                        // If error is about missing column, try to add it
+                        if (err.code === 'ER_BAD_FIELD_ERROR' && err.message.includes('user_data')) {
+                            db.query("ALTER TABLE otps ADD COLUMN user_data TEXT", (alterErr) => {
+                                if (alterErr) {
+                                    return res.status(500).send({ message: "Error updating database schema for OTP." });
+                                }
+                                // Retry the insert
+                                db.query("INSERT INTO otps (email, otp, user_data) VALUES (?, ?, ?)", [email, otp, JSON.stringify(partner)], async (retryErr) => {
+                                    if (retryErr) return res.status(500).send({ message: "Error during partner signup process after schema update." });
+                                    
+                                    try {
+                                        await emailService.sendOTPEmail(email, otp);
+                                        res.status(200).send({ message: "OTP sent to your email.", dev_otp: otp });
+                                    } catch (error) {
+                                        return res.status(500).send({ message: "Error sending verification email." });
+                                    }
+                                });
+                            });
+                            return;
+                        }
+                        return res.status(500).send({
+                            message: "Error during signup process."
+                        });
+                    }
+
+                    try {
+                        await emailService.sendOTPEmail(email, otp);
+                        res.status(200).send({ message: "OTP sent to your email.", dev_otp: otp });
+                    } catch (error) {
+                        console.log("Email error:", error);
+                        return res.status(500).send({ message: "Error sending verification email. Check your email or use DEV OTP." });
+                    }
                 });
             });
         });
     });
+};
+
+// Verify OTP
+exports.verifyOtp = (req, res) => {
+    const { email, otp } = req.body;
+
+    // Check OTP and ensure it's not older than 10 minutes
+    db.query(
+        "SELECT * FROM otps WHERE email = ? AND otp = ? AND created_at > DATE_SUB(NOW(), INTERVAL 10 MINUTE) ORDER BY created_at DESC LIMIT 1", 
+        [email, otp], 
+        (err, results) => {
+            if (err || results.length === 0) {
+                return res.status(400).send({ message: "Invalid or expired OTP." });
+            }
+
+            const partnerData = JSON.parse(results[0].user_data);
+            const newPartner = new Partner(partnerData);
+            newPartner.is_verified = 1; // Mark as verified
+
+            Partner.create(newPartner, (err, data) => {
+                if (err) {
+                    console.error("Partner Creation Error:", err);
+                    
+                    // Auto-fix: If columns are missing, try to add them and retry
+                    if (err.code === 'ER_BAD_FIELD_ERROR') {
+                        const missingCol = err.message.match(/Unknown column '(.+?)' in 'field list'/);
+                        if (missingCol && missingCol[1]) {
+                            const colName = missingCol[1];
+                            let colType = "TEXT"; 
+                            if (colName === 'phone') colType = "VARCHAR(255)"; // Use larger size to be safe
+                            if (colName === 'is_verified' || colName === 'is_suspended') colType = "TINYINT(1) DEFAULT 0";
+                            if (colName === 'experience') colType = "INT DEFAULT 0";
+                            
+                            db.query(`ALTER TABLE partners ADD COLUMN ${colName} ${colType}`, (alterErr) => {
+                                if (alterErr) return res.status(500).send({ message: "Error fixing schema: " + alterErr.message });
+                                Partner.create(newPartner, (retryErr) => {
+                                    if (retryErr) return res.status(500).send({ message: "Retry failed: " + retryErr.message + ". Please try verifying again." });
+                                    db.query("DELETE FROM otps WHERE email = ?", [email]);
+                                    res.status(201).send({ message: "Verification successful! Account created." });
+                                });
+                            });
+                            return;
+                        }
+                    }
+
+                    // Handle data too long (e.g. phone number)
+                    if (err.code === 'ER_DATA_TOO_LONG') {
+                        const colMatch = err.message.match(/column '(.+?)' at row/);
+                        if (colMatch && colMatch[1]) {
+                            const colName = colMatch[1];
+                            db.query(`ALTER TABLE partners MODIFY COLUMN ${colName} VARCHAR(255)`, (modErr) => {
+                                if (modErr) return res.status(500).send({ message: "Error increasing column size: " + modErr.message });
+                                Partner.create(newPartner, (retryErr) => {
+                                    if (retryErr) return res.status(500).send({ message: "Retry failed: " + retryErr.message });
+                                    db.query("DELETE FROM otps WHERE email = ?", [email]);
+                                    res.status(201).send({ message: "Verification successful! Account created." });
+                                });
+                            });
+                            return;
+                        }
+                    }
+                    res.status(500).send({ message: "Error creating partner account: " + err.message });
+                } else {
+                    // Delete OTP after successful verification
+                    db.query("DELETE FROM otps WHERE email = ?", [email]);
+                    res.status(201).send({ message: "Email verified successfully! Your account is now pending admin approval." });
+                }
+            });
+        }
+    );
 };
 
 // Login

@@ -4,7 +4,7 @@ block content
     section.form-section
         div.form-container(style="max-width: 600px;")
             h2 Become a Partner
-            form.partner-signup-form
+            form.partner-signup-form#signup-form
                 div.form-group
                     label(for="name") Full Name
                     input(type="text", id="name", required)
@@ -30,6 +30,14 @@ block content
                     label(for="pricing") Pricing (e.g., "£50/hour, £100 for a specific job")
                     input(type="text", id="pricing", required)
                 button(type="submit", class="button") Register
+
+            form.partner-otp-form#otp-form(style="display: none;")
+                h3 Email Verification
+                p An OTP has been sent to your email. Please enter it below to verify your account.
+                div.form-group
+                    label(for="otp") OTP Code
+                    input(type="text", id="otp", required, placeholder="6-digit code")
+                button(type="submit", class="button") Verify OTP
 
 block scripts
     script(src="/partner/partner.js")

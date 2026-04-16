@@ -5,44 +5,102 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = localStorage.getItem('partnerToken');
     const partnerId = localStorage.getItem('partnerId');
 
+    // Helper to prevent XSS
+    const escapeHTML = (str) => {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    };
+
     // Redirect to login if not on login/signup page and no token
     if (!token && !window.location.pathname.startsWith('/partner/login') && !window.location.pathname.startsWith('/partner/signup')) {
         window.location.href = '/partner/login';
+        return;
+    }
+
+    // Set partner name in top bar
+    if (token && partnerId) {
+        fetch(`/api/partners/${partnerId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        })
+        .then(res => res.json())
+        .then(partner => {
+            const nameDisplay = document.getElementById('partner-name-display');
+            if (nameDisplay) nameDisplay.textContent = partner.name;
+            
+            // If on profile page, populate it
+            const profileNameInput = document.getElementById('profile-name');
+            if (profileNameInput) {
+                profileNameInput.value = partner.name;
+                document.getElementById('profile-email').value = partner.email;
+                document.getElementById('profile-description').value = partner.description || '';
+                document.getElementById('profile-pricing').value = partner.pricing || '';
+                document.getElementById('profile-image-url').value = partner.profile_image || '';
+                document.getElementById('work-images-url').value = partner.work_images ? partner.work_images.split(',').join(', ') : '';
+            }
+        })
+        .catch(err => console.error("Error fetching partner details:", err));
     }
 
     // --- Partner Login ---
     if (partnerLoginForm) {
         partnerLoginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            const submitBtn = partnerLoginForm.querySelector('button[type="submit"]');
             const email = partnerLoginForm.querySelector('#email').value;
             const password = partnerLoginForm.querySelector('#password').value;
 
-            const response = await fetch('/api/partners/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
-            });
+            try {
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerText = 'Logging in...';
+                }
 
-            const data = await response.json();
+                const response = await fetch('/api/partners/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
 
-            if (response.ok) {
-                localStorage.setItem('partnerToken', data.accessToken);
-                localStorage.setItem('partnerId', data.id);
-                window.location.href = '/partner/dashboard';
-            } else {
-                alert('Login failed: ' + data.message);
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('partnerToken', data.accessToken);
+                    localStorage.setItem('partnerId', data.id);
+                    window.location.href = '/partner/dashboard';
+                } else {
+                    alert('Login failed: ' + (data.message || 'Invalid credentials'));
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerText = 'Login';
+                    }
+                }
+            } catch (err) {
+                console.error("Login error:", err);
+                alert("Could not connect to the server. Please check your connection.");
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerText = 'Login';
+                }
             }
         });
     }
 
     // --- Partner Signup ---
     if (partnerSignupForm) {
-            // Fetch services for the dropdown
+        const otpForm = document.querySelector('#otp-form');
+        let registeredEmail = '';
+
+        // Fetch services for the dropdown
         fetch('/api/services')
             .then(res => res.json())
             .then(services => {
                 const serviceSelect = partnerSignupForm.querySelector('#service-id');
-                if (serviceSelect) {
+                if (serviceSelect && serviceSelect.options.length <= 1) { // Only if not already populated by server
                     services.forEach(service => {
                         const option = document.createElement('option');
                         option.value = service.id;
@@ -62,26 +120,60 @@ document.addEventListener('DOMContentLoaded', () => {
             const description = partnerSignupForm.querySelector('#description').value;
             const pricing = partnerSignupForm.querySelector('#pricing').value;
 
-            const response = await fetch('/api/partners/signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, email, phone, password, service_id, description, pricing })
-            });
+            registeredEmail = email;
 
-            const data = await response.json();
+            try {
+                const response = await fetch('/api/partners/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, phone, password, service_id, description, pricing })
+                });
 
-            if (response.ok) {
-                alert('Registration successful! Your account is pending approval by the admin.');
-                window.location.href = '/partner/login';
-            } else {
-                alert('Registration failed: ' + data.message);
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('OTP sent to your email. Please verify to complete registration.');
+                    partnerSignupForm.style.display = 'none';
+                    if (otpForm) otpForm.style.display = 'block';
+                } else {
+                    alert('Registration failed: ' + data.message);
+                }
+            } catch (err) {
+                alert('An error occurred during registration.');
             }
         });
+
+        if (otpForm) {
+            otpForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const otp = otpForm.querySelector('#otp').value;
+
+                try {
+                    const response = await fetch('/api/partners/verify-otp', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email: registeredEmail, otp })
+                    });
+
+                    const data = await response.json();
+
+                    if (response.ok) {
+                        alert(data.message || 'Verification successful! Your account is pending admin approval.');
+                        window.location.href = '/partner/login';
+                    } else {
+                        alert('Verification failed: ' + data.message);
+                    }
+                } catch (err) {
+                    alert('An error occurred during verification.');
+                }
+            });
+        }
     }
 
     // --- Partner Logout ---
     if (partnerLogoutBtn) {
-        partnerLogoutBtn.addEventListener('click', () => {
+        partnerLogoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
             localStorage.removeItem('partnerToken');
             localStorage.removeItem('partnerId');
             window.location.href = '/partner/login';
@@ -91,45 +183,58 @@ document.addEventListener('DOMContentLoaded', () => {
     // Partner Availability Management
     if (window.location.pathname === '/partner/dashboard') {
         const headers = { 'Authorization': `Bearer ${token}` };
-        const earningsLink = document.getElementById('earnings-link');
-        const withdrawalLink = document.getElementById('withdrawal-link');
-        const availabilityLink = document.getElementById('availability-link');
+        
+        // Navigation links from sidebar
+        const earningsLink = document.getElementById('earnings-link-nav');
+        const withdrawalLink = document.getElementById('withdrawal-link-nav');
+        const availabilityLink = document.getElementById('availability-link-nav');
         const dashboardLink = document.querySelector('a[href="/partner/dashboard"]');
         
         const earningsSection = document.getElementById('earnings-section');
         const withdrawalSection = document.getElementById('withdrawal-section');
         const availabilitySection = document.getElementById('availability-management');
-        const recentBookingsSection = document.querySelector('.recent-bookings');
-        const statsCards = document.querySelector('.dashboard-stats');
+        const dashboardOverview = document.getElementById('dashboard-overview');
+
+        const sections = [earningsSection, withdrawalSection, availabilitySection, dashboardOverview];
 
         // Toggle sections
-        const showSection = (sectionName) => {
-            [earningsSection, withdrawalSection, availabilitySection, recentBookingsSection, statsCards].forEach(s => {
-                if (s) s.style.display = 'none';
+        const showSection = (sectionId) => {
+            sections.forEach(s => {
+                if (s) s.classList.remove('active');
             });
             
-            document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+            document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
 
-            if (sectionName === 'earnings') {
-                earningsSection.style.display = 'block';
-                earningsLink.classList.add('active');
-            } else if (sectionName === 'withdrawal') {
-                withdrawalSection.style.display = 'block';
-                withdrawalLink.classList.add('active');
-                fetchWithdrawalData();
-            } else if (sectionName === 'availability') {
-                availabilitySection.style.display = 'block';
-                availabilityLink.classList.add('active');
-            } else {
-                recentBookingsSection.style.display = 'block';
-                statsCards.style.display = 'flex';
-                dashboardLink.classList.add('active');
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.classList.add('active');
+                
+                // Set sidebar active state
+                if (sectionId === 'earnings-section') earningsLink.classList.add('active');
+                else if (sectionId === 'withdrawal-section') {
+                    withdrawalLink.classList.add('active');
+                    fetchWithdrawalData();
+                } else if (sectionId === 'availability-management') availabilityLink.classList.add('active');
+                else dashboardLink.classList.add('active');
             }
         };
 
-        if (earningsLink) earningsLink.addEventListener('click', (e) => { e.preventDefault(); showSection('earnings'); });
-        if (withdrawalLink) withdrawalLink.addEventListener('click', (e) => { e.preventDefault(); showSection('withdrawal'); });
-        if (availabilityLink) availabilityLink.addEventListener('click', (e) => { e.preventDefault(); showSection('availability'); });
+        // Handle URL hash for direct linking
+        const handleHash = () => {
+            const hash = window.location.hash.substring(1);
+            if (hash === 'earnings-section') showSection('earnings-section');
+            else if (hash === 'withdrawal-section') showSection('withdrawal-section');
+            else if (hash === 'availability-management') showSection('availability-management');
+            else showSection('dashboard-overview');
+        };
+
+        window.addEventListener('hashchange', handleHash);
+        handleHash(); // Initial check
+
+        if (earningsLink) earningsLink.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = 'earnings-section'; });
+        if (withdrawalLink) withdrawalLink.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = 'withdrawal-section'; });
+        if (availabilityLink) availabilityLink.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = 'availability-management'; });
+        if (dashboardLink) dashboardLink.addEventListener('click', (e) => { e.preventDefault(); window.location.hash = ''; });
         
         const fetchWithdrawalData = async () => {
             try {
@@ -146,16 +251,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (history.length > 0) {
                     let hTable = '<table><thead><tr><th>Date</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
                     history.forEach(req => {
+                        const statusClass = 'status-' + req.status.toLowerCase().replace(' ', '-');
                         hTable += `<tr>
                             <td>${new Date(req.created_at).toLocaleDateString()}</td>
                             <td>£${parseFloat(req.amount).toFixed(2)}</td>
-                            <td><span class="status-badge status-${req.status.toLowerCase()}">${req.status}</span></td>
+                            <td><span class="status-badge ${statusClass}">${req.status}</span></td>
                         </tr>`;
                     });
                     hTable += '</tbody></table>';
                     historyContainer.innerHTML = hTable;
                 } else {
-                    historyContainer.innerHTML = '<p>No withdrawal requests found.</p>';
+                    historyContainer.innerHTML = '<p class="text-center" style="padding: 2rem;">No withdrawal requests found.</p>';
                 }
             } catch (err) {
                 console.error("Error fetching withdrawal data:", err);
@@ -198,23 +304,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         }
-        dashboardLink.addEventListener('click', (e) => { 
-            if (window.location.pathname === '/partner/dashboard') {
-                e.preventDefault(); 
-                showSection('dashboard'); 
-            }
-        });
-
-        // Helper to prevent XSS
-        const escapeHTML = (str) => {
-            if (!str) return '';
-            return String(str)
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-        };
 
         // Fetch Total Bookings for this partner
         fetch(`/api/partners/${partnerId}/bookings`, { headers })
@@ -230,18 +319,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Calculate earnings
                 const totalEarnings = completedJobs.reduce((sum, b) => sum + parseFloat(b.total_cost || 0), 0);
                 document.getElementById('total-earnings').textContent = `£${totalEarnings.toFixed(2)}`;
-                document.getElementById('detailed-total-earnings').textContent = `£${totalEarnings.toFixed(2)}`;
+                const detailedEarnings = document.getElementById('detailed-total-earnings');
+                if (detailedEarnings) detailedEarnings.textContent = `£${totalEarnings.toFixed(2)}`;
 
                 // Display recent booking requests
                 const bookingsTableContainer = document.getElementById('bookings-table');
-                let table = '<table><thead><tr><th>ID</th><th>User</th><th>Status</th><th>Date</th><th>Time</th><th>Cost</th></tr></thead><tbody>';
+                let table = '<table><thead><tr><th>ID</th><th>User</th><th>Service</th><th>Date</th><th>Status</th><th>Cost</th></tr></thead><tbody>';
                 partnerBookings.slice(0, 5).forEach(booking => {
+                    const statusClass = 'status-' + booking.status.toLowerCase().replace(' ', '-');
                     table += `<tr>
-                        <td>${booking.id}</td>
-                        <td>${escapeHTML(booking.user_name || booking.user_id)}</td>
-                        <td><span class="${booking.status.toLowerCase().replace(' ', '-')}">${booking.status}</span></td>
+                        <td>#${booking.id}</td>
+                        <td>${escapeHTML(booking.user_name || 'Customer')}</td>
+                        <td>${escapeHTML(booking.service_name || 'Service')}</td>
                         <td>${new Date(booking.booking_date).toLocaleDateString()}</td>
-                        <td>${booking.booking_time}</td>
+                        <td><span class="status-badge ${statusClass}">${booking.status}</span></td>
                         <td>£${parseFloat(booking.total_cost).toFixed(2)}</td>
                     </tr>`;
                 });
@@ -250,20 +341,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Populate Earnings Table
                 const earningsTableContainer = document.getElementById('earnings-table-container');
-                if (completedJobs.length > 0) {
-                    let eTable = '<table><thead><tr><th>Date</th><th>Service</th><th>Customer</th><th>Amount Earned</th></tr></thead><tbody>';
-                    completedJobs.forEach(job => {
-                        eTable += `<tr>
-                            <td>${new Date(job.booking_date).toLocaleDateString()}</td>
-                            <td>${escapeHTML(job.service_name)}</td>
-                            <td>${escapeHTML(job.user_name)}</td>
-                            <td style="color: green; font-weight: bold;">+ £${parseFloat(job.total_cost).toFixed(2)}</td>
-                        </tr>`;
-                    });
-                    eTable += '</tbody></table>';
-                    earningsTableContainer.innerHTML = eTable;
-                } else {
-                    earningsTableContainer.innerHTML = '<p>No earnings found yet. Jobs appear here once Paid or Completed.</p>';
+                if (earningsTableContainer) {
+                    if (completedJobs.length > 0) {
+                        let eTable = '<table><thead><tr><th>Date</th><th>Service</th><th>Customer</th><th>Amount Earned</th></tr></thead><tbody>';
+                        completedJobs.forEach(job => {
+                            eTable += `<tr>
+                                <td>${new Date(job.booking_date).toLocaleDateString()}</td>
+                                <td>${escapeHTML(job.service_name)}</td>
+                                <td>${escapeHTML(job.user_name)}</td>
+                                <td style="color: var(--success-color); font-weight: bold;">+ £${parseFloat(job.total_cost).toFixed(2)}</td>
+                            </tr>`;
+                        });
+                        eTable += '</tbody></table>';
+                        earningsTableContainer.innerHTML = eTable;
+                    } else {
+                        earningsTableContainer.innerHTML = '<p class="text-center" style="padding: 2rem;">No earnings found yet. Jobs appear here once Paid or Completed.</p>';
+                    }
                 }
             });
 
@@ -287,17 +380,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 else {
                     console.error('Failed to fetch partner availability:', response.statusText);
-                    alert('Failed to fetch availability.');
                 }
             } catch (error) {
                 console.error('Error fetching partner availability:', error);
-                alert('Error fetching availability.');
             }
         };
 
         const renderAvailabilityTable = (availabilityData) => {
             if (availabilityData.length === 0) {
-                availabilityTableContainer.innerHTML = '<p>No availability slots added yet.</p>';
+                availabilityTableContainer.innerHTML = '<p class="text-center" style="padding: 2rem;">No availability slots added yet.</p>';
                 return;
             }
 
@@ -307,9 +398,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td>${new Date(slot.available_date).toLocaleDateString()}</td>
                     <td>${slot.start_time.substring(0, 5)}</td>
                     <td>${slot.end_time.substring(0, 5)}</td>
-                    <td>${slot.status}</td>
+                    <td><span class="status-badge status-accepted">${slot.status}</span></td>
                     <td>
-                        <button class="button-danger delete-availability-btn" data-id="${slot.id}">Delete</button>
+                        <button class="button button-danger button-sm delete-availability-btn" data-id="${slot.id}"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>`;
             });
@@ -318,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             document.querySelectorAll('.delete-availability-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
-                    const slotId = e.target.dataset.id;
+                    const slotId = btn.dataset.id;
                     if (confirm('Are you sure you want to delete this availability slot?')) {
                         await deleteAvailability(slotId);
                     }
@@ -378,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        addAvailabilityForm.addEventListener('submit', addAvailability);
+        if (addAvailabilityForm) addAvailabilityForm.addEventListener('submit', addAvailability);
         fetchPartnerAvailability(); // Load availability when dashboard loads
     }
 
@@ -389,29 +480,31 @@ document.addEventListener('DOMContentLoaded', () => {
         let allPartnerBookings = [];
 
         const renderPartnerBookings = (bookings) => {
-            let table = '<table><thead><tr><th>Booking ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Time</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+            let table = '<table><thead><tr><th>Booking ID</th><th>Customer</th><th>Service</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
             bookings.forEach(booking => {
+                const statusClass = 'status-' + booking.status.toLowerCase().replace(' ', '-');
                 table += `<tr>
-                    <td>${booking.id}</td>
-                    <td>${booking.user_name || booking.user_id}</td>
-                    <td>${booking.service_name || booking.service_id}</td>
-                    <td>${new Date(booking.booking_date).toLocaleDateString()}</td>
-                    <td>${booking.booking_time}</td>
+                    <td>#${booking.id}</td>
+                    <td>${escapeHTML(booking.user_name || 'Customer')}</td>
+                    <td>${escapeHTML(booking.service_name || 'Service')}</td>
+                    <td>${new Date(booking.booking_date).toLocaleDateString()}<br><small>${booking.booking_time}</small></td>
                     <td>
-                        <span class="${booking.status.toLowerCase().replace(' ', '-')}">${booking.status}</span>
+                        <span class="status-badge ${statusClass}">${booking.status}</span>
                     </td>
                     <td>
-                        ${booking.status === 'Pending' ? `
-                            <button class="button-success accept-booking-btn" data-id="${booking.id}">Accept</button>
-                            <button class="button-danger reject-booking-btn" data-id="${booking.id}">Reject</button>
-                        ` : ''}
-                        ${(booking.status === 'Accepted' || booking.status === 'Paid') ? `
-                            <button class="button start-work-btn" data-id="${booking.id}">Start Work</button>
-                        ` : ''}
-                        ${booking.status === 'In Progress' ? `
-                            <button class="button-success finish-work-btn" data-id="${booking.id}">Finish Work</button>
-                        ` : ''}
-                        <button class="button open-chat-btn" data-id="${booking.id}" style="background-color: #6c757d;">Chat</button>
+                        <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            ${booking.status === 'Pending' ? `
+                                <button class="button button-success button-sm accept-booking-btn" data-id="${booking.id}">Accept</button>
+                                <button class="button button-danger button-sm reject-booking-btn" data-id="${booking.id}">Reject</button>
+                            ` : ''}
+                            ${(booking.status === 'Accepted' || booking.status === 'Paid') ? `
+                                <button class="button button-primary button-sm start-work-btn" data-id="${booking.id}">Start Work</button>
+                            ` : ''}
+                            ${booking.status === 'In Progress' ? `
+                                <button class="button button-success button-sm finish-work-btn" data-id="${booking.id}">Finish Work</button>
+                            ` : ''}
+                            <button class="button button-outline button-sm open-chat-btn" data-id="${booking.id}"><i class="fas fa-comment"></i> Chat</button>
+                        </div>
                     </td>
                 </tr>`;
             });
@@ -436,12 +529,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (response.ok) {
                         const messages = await response.json();
                         chatWindow.innerHTML = messages.map(msg => `
-                            <div style="margin-bottom: 1rem; text-align: ${msg.sender_type === 'partner' ? 'right' : 'left'}">
-                                <div style="display: inline-block; padding: 0.6rem 1rem; border-radius: 15px; background: ${msg.sender_type === 'partner' ? 'var(--primary-color)' : '#e4e6eb'}; color: ${msg.sender_type === 'partner' ? '#fff' : '#000'}; max-width: 80%;">
-                                    <div style="font-size: 0.7rem; margin-bottom: 0.2rem; opacity: 0.8;">${msg.sender_type === 'partner' ? 'You' : 'Customer'}</div>
+                            <div style="margin-bottom: 0.5rem; display: flex; flex-direction: column; align-items: ${msg.sender_type === 'partner' ? 'flex-end' : 'flex-start'}">
+                                <div style="max-width: 80%; padding: 0.75rem 1rem; border-radius: 1rem; font-size: 0.9rem; background: ${msg.sender_type === 'partner' ? 'var(--primary-color)' : '#e4e6eb'}; color: ${msg.sender_type === 'partner' ? '#fff' : '#000'}; border-bottom-${msg.sender_type === 'partner' ? 'right' : 'left'}-radius: 0;">
                                     ${escapeHTML(msg.message)}
-                                    <div style="font-size: 0.6rem; margin-top: 0.2rem; opacity: 0.6;">${new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
                                 </div>
+                                <span style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.2rem;">${new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             </div>
                         `).join('');
                         chatWindow.scrollTop = chatWindow.scrollHeight;
@@ -460,32 +552,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             });
 
-            closeChatModal.addEventListener('click', () => {
-                chatModal.style.display = 'none';
-                currentBookingId = null;
-                if (partnerChatInterval) clearInterval(partnerChatInterval);
-            });
+            if (closeChatModal) {
+                closeChatModal.addEventListener('click', () => {
+                    chatModal.style.display = 'none';
+                    currentBookingId = null;
+                    if (partnerChatInterval) clearInterval(partnerChatInterval);
+                });
+            }
 
-            chatForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const message = chatInput.value;
-                try {
-                    const response = await fetch('/api/chat', {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${token}` 
-                        },
-                        body: JSON.stringify({ booking_id: currentBookingId, message })
-                    });
-                    if (response.ok) {
-                        chatInput.value = '';
-                        fetchPartnerChat();
+            if (chatForm) {
+                chatForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const message = chatInput.value;
+                    try {
+                        const response = await fetch('/api/chat', {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${token}` 
+                            },
+                            body: JSON.stringify({ booking_id: currentBookingId, message })
+                        });
+                        if (response.ok) {
+                            chatInput.value = '';
+                            fetchPartnerChat();
+                        }
+                    } catch (err) {
+                        console.error("Partner send message error:", err);
                     }
-                } catch (err) {
-                    console.error("Partner send message error:", err);
-                }
-            });
+                });
+            }
 
             // Helper for status updates
             const updateStatus = async (bId, status, btn) => {
@@ -522,47 +618,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // Add event listeners for accept/reject buttons
             document.querySelectorAll('.accept-booking-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const bookingId = e.target.dataset.id;
-                    const originalText = btn.innerText;
-                    btn.disabled = true;
-                    btn.innerText = 'Processing...';
-
-                    fetch(`/api/partners/bookings/${bookingId}/accept`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    }).then(res => {
-                        if (res.ok) {
-                            fetchPartnerBookings(); // Refresh bookings
-                            alert('Booking accepted!');
-                        } else {
-                            alert('Failed to accept booking.');
-                            btn.disabled = false;
-                            btn.innerText = originalText;
-                        }
-                    });
+                    const bookingId = btn.dataset.id;
+                    updateStatus(bookingId, 'Accepted', btn);
                 });
             });
 
             document.querySelectorAll('.reject-booking-btn').forEach(btn => {
                 btn.addEventListener('click', (e) => {
-                    const bookingId = e.target.dataset.id;
-                    const originalText = btn.innerText;
-                    btn.disabled = true;
-                    btn.innerText = 'Processing...';
-
-                    fetch(`/api/partners/bookings/${bookingId}/reject`, {
-                        method: 'PUT',
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    }).then(res => {
-                        if (res.ok) {
-                            fetchPartnerBookings(); // Refresh bookings
-                            alert('Booking rejected!');
-                        } else {
-                            alert('Failed to reject booking.');
-                            btn.disabled = false;
-                            btn.innerText = originalText;
-                        }
-                    });
+                    const bookingId = btn.dataset.id;
+                    if (confirm('Are you sure you want to reject this booking?')) {
+                        updateStatus(bookingId, 'Rejected', btn);
+                    }
                 });
             });
 
@@ -597,72 +663,141 @@ document.addEventListener('DOMContentLoaded', () => {
 
         statusFilter.addEventListener('change', applyPartnerBookingFilters);
         fetchPartnerBookings();
+        
+        // Check if we should open chat from hash
+        if (window.location.hash === '#chat-modal') {
+            // Wait a bit for bookings to load then find one to chat? 
+            // Or just alert to select one
+        }
     }
 
     // --- Partner Profile Management ---
     if (window.location.pathname === '/partner/profile') {
         const profileForm = document.getElementById('partner-profile-form');
-        const profileNameInput = document.getElementById('profile-name');
-        const profileEmailInput = document.getElementById('profile-email');
-        const profileDescriptionInput = document.getElementById('profile-description');
-        const profilePricingInput = document.getElementById('profile-pricing');
-        const profileImageUrlInput = document.getElementById('profile-image-url');
-        const workImagesUrlInput = document.getElementById('work-images-url');
-
-        // Fetch partner profile data
-        fetch(`/api/partners/${partnerId}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        })
-        .then(res => res.json())
-        .then(partner => {
-            profileNameInput.value = partner.name;
-            profileEmailInput.value = partner.email;
-            profileDescriptionInput.value = partner.description || '';
-            profilePricingInput.value = partner.pricing || '';
-            profileImageUrlInput.value = partner.profile_image || '';
-            workImagesUrlInput.value = partner.work_images ? partner.work_images.split(',').join(', ') : '';
-        });
 
         // Handle form submission for profile update
-        profileForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const submitBtn = profileForm.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn.innerText;
+        if (profileForm) {
+            profileForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const submitBtn = profileForm.querySelector('button[type="submit"]');
+                const originalBtnText = submitBtn.innerHTML;
 
-            const updatedProfile = {
-                name: profileNameInput.value,
-                description: profileDescriptionInput.value,
-                pricing: profilePricingInput.value,
-                profile_image: profileImageUrlInput.value,
-                work_images: workImagesUrlInput.value.split(',').map(url => url.trim()).join(',')
-            };
+                const updatedProfile = {
+                    name: document.getElementById('profile-name').value,
+                    description: document.getElementById('profile-description').value,
+                    pricing: document.getElementById('profile-pricing').value,
+                    profile_image: document.getElementById('profile-image-url').value,
+                    work_images: document.getElementById('work-images-url').value.split(',').map(url => url.trim()).join(',')
+                };
 
+                try {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+
+                    const response = await fetch(`/api/partners/${partnerId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify(updatedProfile)
+                    });
+
+                    const data = await response.json();
+                    if (response.ok) {
+                        alert('Profile updated successfully!');
+                        // Update display name in top bar
+                        const nameDisplay = document.getElementById('partner-name-display');
+                        if (nameDisplay) nameDisplay.textContent = updatedProfile.name;
+                    } else {
+                        alert('Update failed: ' + (data.message || 'Unknown error'));
+                    }
+                } catch (error) {
+                    console.error('Error updating profile:', error);
+                    alert('Failed to update profile.');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                }
+            });
+        }
+    }
+
+    // --- Manage Services ---
+    if (window.location.pathname === '/partner/services') {
+        const addServiceForm = document.getElementById('add-partner-service-form');
+        const myServicesTable = document.getElementById('my-services-table');
+
+        const fetchMyServices = async () => {
             try {
-                submitBtn.disabled = true;
-                submitBtn.innerText = 'Updating...';
+                const response = await fetch('/api/partners/services/my', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const services = await response.json();
+                
+                if (services.length === 0) {
+                    myServicesTable.innerHTML = '<p class="text-center" style="padding: 2rem;">No additional services added yet.</p>';
+                    return;
+                }
 
-                const response = await fetch(`/api/partners/${partnerId}`, {
-                    method: 'PUT',
-                    headers: {
+                let html = '<table><thead><tr><th>Service Name</th><th>Price</th><th>Actions</th></tr></thead><tbody>';
+                services.forEach(s => {
+                    html += `<tr>
+                        <td>${escapeHTML(s.service_name)}</td>
+                        <td>£${parseFloat(s.price).toFixed(2)}</td>
+                        <td>
+                            <button class="button button-danger button-sm delete-service-btn" data-id="${s.id}"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>`;
+                });
+                html += '</tbody></table>';
+                myServicesTable.innerHTML = html;
+
+                document.querySelectorAll('.delete-service-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        if (confirm('Are you sure you want to remove this service?')) {
+                            const res = await fetch(`/api/partners/services/${btn.dataset.id}`, {
+                                method: 'DELETE',
+                                headers: { 'Authorization': `Bearer ${token}` }
+                            });
+                            if (res.ok) fetchMyServices();
+                        }
+                    });
+                });
+            } catch (err) {
+                myServicesTable.innerHTML = '<p class="text-center" style="padding: 2rem;">Error loading services.</p>';
+            }
+        };
+
+        if (addServiceForm) {
+            addServiceForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(addServiceForm);
+                const data = {
+                    service_id: document.getElementById('service-id').value,
+                    price: document.getElementById('service-price').value
+                };
+
+                const res = await fetch('/api/partners/services', {
+                    method: 'POST',
+                    headers: { 
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${token}` 
                     },
-                    body: JSON.stringify(updatedProfile)
+                    body: JSON.stringify(data)
                 });
 
-                const data = await response.json();
-                if (response.ok) {
-                    alert('Profile updated successfully!');
+                if (res.ok) {
+                    alert('Service added successfully!');
+                    addServiceForm.reset();
+                    fetchMyServices();
                 } else {
-                    alert('Update failed: ' + (data.message || 'Unknown error'));
+                    const err = await res.json();
+                    alert('Error: ' + err.message);
                 }
-            } catch (error) {
-                console.error('Error updating profile:', error);
-                alert('Failed to update profile.');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerText = originalBtnText;
-            }
-        });
+            });
+        }
+
+        fetchMyServices();
     }
 });

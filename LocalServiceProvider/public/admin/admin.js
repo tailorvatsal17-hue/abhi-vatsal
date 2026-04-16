@@ -1,7 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // --- Initial setup and robust path checking ---
+    const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+    const isLoginPage = (currentPath === '/admin');
+    const token = localStorage.getItem('adminToken');
     const adminLoginForm = document.querySelector('.admin-login-form');
     const adminLogoutBtn = document.querySelector('#admin-logout-btn');
-    const token = localStorage.getItem('adminToken');
 
     const escapeHTML = (str) => {
         if (!str) return '';
@@ -13,9 +16,16 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/'/g, '&#039;');
     };
 
-    // Redirect to login if not on login page and no token
-    if (!token && window.location.pathname.startsWith('/admin') && window.location.pathname !== '/admin') {
+    // --- Authentication & Redirect Logic ---
+    // If we are in the admin area but not logged in and not on the login page, redirect to login.
+    if (window.location.pathname.startsWith('/admin') && !isLoginPage && !token) {
         window.location.href = '/admin';
+        return;
+    }
+
+    // If we are on the login page and ALREADY have a token, skip to dashboard.
+    if (isLoginPage && token) {
+        window.location.href = '/admin/dashboard';
         return;
     }
 
@@ -27,8 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Admin Login ---
-    if (adminLoginForm) {
+    // --- Admin Login Form Handling ---
+    if (isLoginPage && adminLoginForm) {
         adminLoginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const emailInput = adminLoginForm.querySelector('#email');
@@ -37,8 +47,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!emailInput || !passwordInput) return;
 
-            const email = emailInput.value;
-            const password = passwordInput.value;
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (!email || !password) {
+                alert("Please enter both email and password.");
+                return;
+            }
 
             try {
                 if (submitBtn) {
@@ -58,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.setItem('adminToken', data.accessToken);
                     window.location.href = '/admin/dashboard';
                 } else {
-                    alert('Login failed: ' + data.message);
+                    alert('Login failed: ' + (data.message || 'Invalid credentials'));
                     if (submitBtn) {
                         submitBtn.disabled = false;
                         submitBtn.innerText = 'Login';
@@ -66,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } catch (err) {
                 console.error("Login error:", err);
-                alert("An unexpected error occurred.");
+                alert("Could not connect to the server. Please check your connection.");
                 if (submitBtn) {
                     submitBtn.disabled = false;
                     submitBtn.innerText = 'Login';
@@ -75,56 +90,117 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Common Headers ---
-    const headers = token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : {};
+    // --- Admin Dashboard & Protected Area Logic ---
+    // Only proceed if we have a token (or we are on the login page)
+    if (!token && !isLoginPage) return;
 
-    // --- Dashboard Stats ---
-    if (window.location.pathname === '/admin/dashboard') {
-        // Fetch Overall Stats
+    const headers = { 
+        'Authorization': `Bearer ${token}`, 
+        'Content-Type': 'application/json' 
+    };
+
+    // Dashboard Stats Logic
+    if (currentPath === '/admin/dashboard') {
+        let allRecentBookings = [];
+
         fetch('/api/admin/analytics', { headers })
             .then(res => res.json())
             .then(data => {
                 const elements = {
-                    'total-users': parseInt(data.overall.total_users) + parseInt(data.overall.total_partners),
-                    'total-partners': data.overall.total_partners,
-                    'total-services': data.overall.total_services,
-                    'total-bookings': data.overall.total_bookings,
-                    'total-earnings': `£${parseFloat(data.overall.total_revenue).toFixed(2)}`
+                    'total-users': parseInt(data.overall.total_users || 0),
+                    'total-partners': data.overall.total_partners || 0,
+                    'total-services': data.overall.total_services || 0,
+                    'total-bookings': data.overall.total_bookings || 0,
+                    'total-earnings': `£${parseFloat(data.overall.total_revenue || 0).toFixed(2)}`,
+                    'pending-partners': data.overall.pending_partners || 0,
+                    'active-users': data.overall.active_users || 0,
+                    'suspended-users': data.overall.suspended_users || 0,
+                    'successful-payments': data.overall.successful_payments || 0,
+                    'failed-payments': data.overall.failed_payments || 0
                 };
                 for (const [id, val] of Object.entries(elements)) {
                     const el = document.getElementById(id);
                     if (el) el.textContent = val;
                 }
+
+                // Render Dashboard Charts
+                const canvas1 = document.getElementById('dashboardBookingChart');
+                if (canvas1 && typeof Chart !== 'undefined' && data.trends) {
+                    new Chart(canvas1.getContext('2d'), {
+                        type: 'line',
+                        data: { 
+                            labels: data.trends.map(t => new Date(t.date).toLocaleDateString()), 
+                            datasets: [{ label: 'Bookings', data: data.trends.map(t => t.booking_count), borderColor: '#007BFF', fill: false, tension: 0.3 }] 
+                        }
+                    });
+                }
+
+                const canvas2 = document.getElementById('dashboardRevenueChart');
+                if (canvas2 && typeof Chart !== 'undefined' && data.trends) {
+                    new Chart(canvas2.getContext('2d'), {
+                        type: 'bar',
+                        data: { 
+                            labels: data.trends.map(t => new Date(t.date).toLocaleDateString()), 
+                            datasets: [{ label: 'Revenue (£)', data: data.trends.map(t => t.daily_revenue), backgroundColor: '#28a745' }] 
+                        }
+                    });
+                }
             }).catch(err => console.error("Stats fetch error:", err));
 
-        // Fetch Recent Bookings
+        const renderRecentBookings = (bookings) => {
+            const container = document.getElementById('bookings-table');
+            if (!container) return;
+            
+            if (bookings.length === 0) {
+                container.innerHTML = '<p>No recent bookings found.</p>';
+                return;
+            }
+
+            let table = '<table><thead><tr><th>ID</th><th>Customer</th><th>Professional</th><th>Status</th><th>Cost</th><th>Actions</th></tr></thead><tbody>';
+            bookings.slice(0, 10).forEach(booking => {
+                table += `<tr>
+                    <td>${booking.id}</td>
+                    <td>${escapeHTML(booking.user_name)}</td>
+                    <td>${escapeHTML(booking.partner_name)}</td>
+                    <td><span class="status-badge status-${booking.status.toLowerCase().replace(' ', '-')}">${booking.status}</span></td>
+                    <td>£${parseFloat(booking.total_cost).toFixed(2)}</td>
+                    <td>
+                        <a href="/admin/bookings" class="button button-sm button-info">Details</a>
+                    </td>
+                </tr>`;
+            });
+            table += '</tbody></table>';
+            container.innerHTML = table;
+        };
+
         fetch('/api/admin/bookings', { headers })
             .then(res => res.json())
             .then(data => {
-                const container = document.getElementById('bookings-table');
-                if (!container) return;
-                let table = '<table><thead><tr><th>ID</th><th>Customer</th><th>Professional</th><th>Status</th><th>Cost</th></tr></thead><tbody>';
-                data.slice(0, 5).forEach(booking => {
-                    table += `<tr>
-                        <td>${booking.id}</td>
-                        <td>${escapeHTML(booking.user_name)}</td>
-                        <td>${escapeHTML(booking.partner_name)}</td>
-                        <td><span class="status-badge status-${booking.status.toLowerCase().replace(' ', '-')}">${booking.status}</span></td>
-                        <td>£${parseFloat(booking.total_cost).toFixed(2)}</td>
-                    </tr>`;
-                });
-                table += '</tbody></table>';
-                container.innerHTML = table;
+                allRecentBookings = data;
+                renderRecentBookings(data);
             }).catch(err => console.error("Bookings fetch error:", err));
+
+        const statusFilter = document.getElementById('recent-booking-status-filter');
+        if (statusFilter) {
+            statusFilter.addEventListener('change', (e) => {
+                const val = e.target.value;
+                if (val === 'all') {
+                    renderRecentBookings(allRecentBookings);
+                } else {
+                    renderRecentBookings(allRecentBookings.filter(b => b.status === val));
+                }
+            });
+        }
 
         const generateReportBtn = document.getElementById('generate-report-btn');
         if (generateReportBtn) {
             generateReportBtn.addEventListener('click', async () => {
-                Promise.all([
-                    fetch('/api/admin/users', { headers }).then(res => res.json()),
-                    fetch('/api/admin/partners', { headers }).then(res => res.json()),
-                    fetch('/api/admin/bookings', { headers }).then(res => res.json())
-                ]).then(([users, partners, bookings]) => {
+                try {
+                    const [users, partners, bookings] = await Promise.all([
+                        fetch('/api/admin/users', { headers }).then(res => res.json()),
+                        fetch('/api/admin/partners', { headers }).then(res => res.json()),
+                        fetch('/api/admin/bookings', { headers }).then(res => res.json())
+                    ]);
                     let csvContent = "data:text/csv;charset=utf-8,Type,ID,Name/Email,Status,Date\n";
                     users.forEach(u => csvContent += `User,${u.id},${u.email},${u.is_suspended?'Suspended':'Active'},${u.created_at}\n`);
                     partners.forEach(p => csvContent += `Partner,${p.id},${p.name},${p.is_approved?'Approved':'Pending'},-\n`);
@@ -135,13 +211,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.body.appendChild(link);
                     link.click();
                     document.body.removeChild(link);
-                });
+                } catch (e) { console.error("Report generation failed", e); }
             });
         }
     }
 
-    // --- Manage Users ---
-    if (window.location.pathname === '/admin/users') {
+    // User Management
+    if (currentPath === '/admin/users') {
         const container = document.getElementById('users-table');
         const searchInput = document.getElementById('user-search');
         let allUsers = [];
@@ -182,7 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const fetchUsers = () => {
             fetch('/api/admin/users', { headers })
                 .then(res => res.json())
-                .then(data => { allUsers = data; renderUsers(allUsers); });
+                .then(data => { allUsers = data; renderUsers(allUsers); })
+                .catch(e => console.error("Fetch users error", e));
         };
 
         if (searchInput) {
@@ -194,8 +271,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchUsers();
     }
 
-    // --- Manage Partners ---
-    if (window.location.pathname === '/admin/partners') {
+    // Partner Management
+    if (currentPath === '/admin/partners') {
         const container = document.getElementById('partners-table');
         const statusFilter = document.getElementById('partner-status-filter');
         let allPartners = [];
@@ -234,9 +311,20 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('.view-details-btn').forEach(btn => {
                 btn.onclick = async () => {
                     const res = await fetch(`/api/admin/partners/${btn.dataset.id}`, { headers });
+                    if (!res.ok) {
+                        alert("Error fetching partner details.");
+                        return;
+                    }
                     const p = await res.json();
                     if (p) {
-                        const mapping = { 'modal-partner-id': p.id, 'modal-partner-name': p.name, 'modal-partner-email': p.email, 'modal-partner-service': p.service_id, 'modal-partner-rating': p.rating, 'modal-partner-status': p.is_approved ? 'Approved' : 'Pending' };
+                        const mapping = { 
+                            'modal-partner-id': p.id, 
+                            'modal-partner-name': p.name, 
+                            'modal-partner-email': p.email, 
+                            'modal-partner-service': p.service_name || p.service_id, 
+                            'modal-partner-rating': p.rating || 'No rating yet', 
+                            'modal-partner-status': p.is_approved ? 'Approved' : 'Pending' 
+                        };
                         for (const [id, val] of Object.entries(mapping)) {
                             const el = document.getElementById(id);
                             if (el) el.tagName === 'INPUT' ? el.value = val : el.textContent = val;
@@ -278,6 +366,30 @@ document.addEventListener('DOMContentLoaded', () => {
         if (closeModal) closeModal.onclick = () => modal.style.display = 'none';
         window.onclick = (e) => { if (e.target == modal) modal.style.display = 'none'; };
 
+        const editPartnerForm = document.getElementById('edit-partner-form');
+        if (editPartnerForm) {
+            editPartnerForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const id = document.getElementById('modal-partner-id').value;
+                const res = await fetch(`/api/admin/partners/${id}`, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify({
+                        description: document.getElementById('modal-partner-description-edit').value,
+                        pricing: document.getElementById('modal-partner-pricing-edit').value,
+                        is_approved: document.getElementById('modal-partner-status').textContent === 'Approved' ? 1 : 0
+                    })
+                });
+                if (res.ok) {
+                    alert('Partner updated successfully!');
+                    modal.style.display = 'none';
+                    fetchPartners();
+                } else {
+                    alert('Update failed.');
+                }
+            };
+        }
+
         fetchPartners();
     }
 
@@ -286,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!docsList) return;
         docsList.innerHTML = '<p>Loading...</p>';
         try {
-            const res = await fetch(`/api/admin/partners/${partnerId}/documents`, { headers: { 'Authorization': `Bearer ${token}` } });
+            const res = await fetch(`/api/admin/partners/${partnerId}/documents`, { headers });
             const docs = await res.json();
             if (docs.length === 0) { docsList.innerHTML = '<p>None.</p>'; return; }
             let html = '<table style="width: 100%; font-size: 0.8rem;">';
@@ -306,8 +418,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (res.ok) fetchPartnerDocuments(partnerId);
     };
 
-    // --- Manage Services ---
-    if (window.location.pathname === '/admin/services') {
+    // Services Management
+    if (currentPath === '/admin/services') {
         const form = document.getElementById('add-service-form');
         if (form) {
             form.onsubmit = (e) => {
@@ -323,8 +435,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Manage Bookings ---
-    if (window.location.pathname === '/admin/bookings') {
+    // Bookings Management
+    if (currentPath === '/admin/bookings') {
         const container = document.getElementById('bookings-management-table');
         const dateFilter = document.getElementById('date-filter');
         const statusFilter = document.getElementById('booking-status-filter');
@@ -370,8 +482,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchBookings();
     }
 
-    // --- Admin Withdrawals ---
-    if (window.location.pathname === '/admin/withdrawals') {
+    // Withdrawals
+    if (currentPath === '/admin/withdrawals') {
         const container = document.getElementById('withdrawals-table-container');
         const fetchWithdrawals = async () => {
             try {
@@ -396,8 +508,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchWithdrawals();
     }
 
-    // --- Admin Categories ---
-    if (window.location.pathname === '/admin/categories') {
+    // Categories
+    if (currentPath === '/admin/categories') {
         const container = document.getElementById('categories-table-container');
         const addForm = document.getElementById('add-category-form');
         const editModal = document.getElementById('edit-category-modal');
@@ -455,8 +567,8 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchCategories();
     }
 
-    // --- Admin Disputes ---
-    if (window.location.pathname === '/admin/disputes') {
+    // Disputes
+    if (currentPath === '/admin/disputes') {
         const container = document.getElementById('disputes-table-container');
         const fetchDisputes = async () => {
             const res = await fetch('/api/admin/disputes', { headers });
@@ -479,64 +591,70 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchDisputes();
     }
 
-    // --- Admin Analytics ---
-    if (window.location.pathname === '/admin/analytics') {
+    // Analytics
+    if (currentPath === '/admin/analytics') {
         const fetchAnalytics = async () => {
-            const res = await fetch('/api/admin/analytics', { headers });
-            const data = await res.json();
-            const rev = document.getElementById('analytics-revenue'); if (rev) rev.textContent = `£${parseFloat(data.overall.total_revenue).toFixed(2)}`;
-            const bks = document.getElementById('analytics-bookings'); if (bks) bks.textContent = data.overall.total_bookings;
-            const usr = document.getElementById('analytics-users'); if (usr) usr.textContent = parseInt(data.overall.total_users) + parseInt(data.overall.total_partners);
+            try {
+                const res = await fetch('/api/admin/analytics', { headers });
+                const data = await res.json();
+                const rev = document.getElementById('analytics-revenue'); if (rev) rev.textContent = `£${parseFloat(data.overall.total_revenue).toFixed(2)}`;
+                const bks = document.getElementById('analytics-bookings'); if (bks) bks.textContent = data.overall.total_bookings;
+                const usr = document.getElementById('analytics-users'); if (usr) usr.textContent = parseInt(data.overall.total_users) + parseInt(data.overall.total_partners);
 
-            const canvas1 = document.getElementById('bookingTrendChart');
-            if (canvas1) {
-                new Chart(canvas1.getContext('2d'), {
-                    type: 'line',
-                    data: { labels: data.trends.map(t => new Date(t.date).toLocaleDateString()), datasets: [{ label: 'Bookings', data: data.trends.map(t => t.booking_count), borderColor: '#007BFF', fill: false }] }
-                });
-            }
+                const canvas1 = document.getElementById('bookingTrendChart');
+                if (canvas1 && typeof Chart !== 'undefined') {
+                    new Chart(canvas1.getContext('2d'), {
+                        type: 'line',
+                        data: { labels: data.trends.map(t => new Date(t.date).toLocaleDateString()), datasets: [{ label: 'Bookings', data: data.trends.map(t => t.booking_count), borderColor: '#007BFF', fill: false }] }
+                    });
+                }
 
-            const canvas2 = document.getElementById('revenueTrendChart');
-            if (canvas2) {
-                new Chart(canvas2.getContext('2d'), {
-                    type: 'bar',
-                    data: { labels: data.trends.map(t => new Date(t.date).toLocaleDateString()), datasets: [{ label: 'Revenue (£)', data: data.trends.map(t => t.daily_revenue), backgroundColor: '#28a745' }] }
-                });
-            }
+                const canvas2 = document.getElementById('revenueTrendChart');
+                if (canvas2 && typeof Chart !== 'undefined') {
+                    new Chart(canvas2.getContext('2d'), {
+                        type: 'bar',
+                        data: { labels: data.trends.map(t => new Date(t.date).toLocaleDateString()), datasets: [{ label: 'Revenue (£)', data: data.trends.map(t => t.daily_revenue), backgroundColor: '#28a745' }] }
+                    });
+                }
 
-            const canvas3 = document.getElementById('statusDistChart');
-            if (canvas3) {
-                new Chart(canvas3.getContext('2d'), {
-                    type: 'doughnut',
-                    data: { labels: data.distribution.map(d => d.status), datasets: [{ data: data.distribution.map(d => d.count), backgroundColor: ['#ffc107', '#28a745', '#dc3545', '#007BFF', '#6c757d'] }] }
-                });
-            }
+                const canvas3 = document.getElementById('statusDistChart');
+                if (canvas3 && typeof Chart !== 'undefined') {
+                    new Chart(canvas3.getContext('2d'), {
+                        type: 'doughnut',
+                        data: { labels: data.distribution.map(d => d.status), datasets: [{ data: data.distribution.map(d => d.count), backgroundColor: ['#ffc107', '#28a745', '#dc3545', '#007BFF', '#6c757d'] }] }
+                    });
+                }
+            } catch (e) { console.error("Analytics fetch failed", e); }
         };
         fetchAnalytics();
     }
 
-    // --- Admin Payments ---
-    if (window.location.pathname === '/admin/payments') {
+    // Payments
+    if (currentPath === '/admin/payments') {
         const container = document.getElementById('payments-table-container');
         const fetchSummary = async () => {
-            const res = await fetch('/api/admin/payments/summary', { headers });
-            const data = await res.json();
-            const rev = document.getElementById('summary-total-revenue'); if (rev) rev.textContent = `£${parseFloat(data.total_revenue || 0).toFixed(2)}`;
-            const succ = document.getElementById('summary-success-count'); if (succ) succ.textContent = data.successful_payments;
-            const fail = document.getElementById('summary-failed-count'); if (fail) fail.textContent = data.failed_payments;
-            const pend = document.getElementById('summary-pending-count'); if (pend) pend.textContent = data.pending_payments;
+            try {
+                const res = await fetch('/api/admin/payments/summary', { headers });
+                const data = await res.json();
+                const rev = document.getElementById('summary-total-revenue'); if (rev) rev.textContent = `£${parseFloat(data.total_revenue || 0).toFixed(2)}`;
+                const succ = document.getElementById('summary-success-count'); if (succ) succ.textContent = data.successful_payments;
+                const fail = document.getElementById('summary-failed-count'); if (fail) fail.textContent = data.failed_payments;
+                const pend = document.getElementById('summary-pending-count'); if (pend) pend.textContent = data.pending_payments;
+            } catch (e) { console.error("Summary fetch failed", e); }
         };
         const fetchPayments = async () => {
-            const res = await fetch('/api/admin/payments', { headers });
-            const pms = await res.json();
-            if (!container) return;
-            if (pms.length === 0) { container.innerHTML = '<p>None.</p>'; return; }
-            let html = '<table><thead><tr><th>Date</th><th>Transaction ID</th><th>Customer</th><th>Professional</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
-            pms.forEach(p => {
-                html += `<tr><td>${new Date(p.created_at).toLocaleDateString()}</td><td><small>${p.transaction_id}</small></td><td>${escapeHTML(p.customer_name)}</td><td>${escapeHTML(p.partner_name)}</td><td>£${parseFloat(p.amount).toFixed(2)}</td><td><span class="status-badge status-${p.status.toLowerCase()}">${p.status}</span></td></tr>`;
-            });
-            html += '</tbody></table>';
-            container.innerHTML = html;
+            try {
+                const res = await fetch('/api/admin/payments', { headers });
+                const pms = await res.json();
+                if (!container) return;
+                if (pms.length === 0) { container.innerHTML = '<p>None.</p>'; return; }
+                let html = '<table><thead><tr><th>Date</th><th>Transaction ID</th><th>Customer</th><th>Professional</th><th>Amount</th><th>Status</th></tr></thead><tbody>';
+                pms.forEach(p => {
+                    html += `<tr><td>${new Date(p.created_at).toLocaleDateString()}</td><td><small>${p.transaction_id}</small></td><td>${escapeHTML(p.customer_name)}</td><td>${escapeHTML(p.partner_name)}</td><td>£${parseFloat(p.amount).toFixed(2)}</td><td><span class="status-badge status-${p.status.toLowerCase()}">${p.status}</span></td></tr>`;
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+            } catch (e) { console.error("Payments fetch failed", e); }
         };
         fetchSummary();
         fetchPayments();

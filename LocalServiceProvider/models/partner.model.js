@@ -16,6 +16,9 @@ const Partner = function(partner) {
 };
 
 Partner.create = (newPartner, result) => {
+    // Remove undefined fields to prevent SQL errors
+    Object.keys(newPartner).forEach(key => newPartner[key] === undefined && delete newPartner[key]);
+
     sql.query("INSERT INTO partners SET ?", newPartner, (err, res) => {
         if (err) {
             console.log("error: ", err);
@@ -48,7 +51,11 @@ Partner.findByEmail = (email, result) => {
 };
 
 Partner.findById = (id, result) => {
-    sql.query("SELECT * FROM partners WHERE id = ?", [id], (err, res) => {
+    sql.query(`
+        SELECT p.*, s.name as service_name 
+        FROM partners p 
+        LEFT JOIN services s ON p.service_id = s.id 
+        WHERE p.id = ?`, [id], (err, res) => {
         if (err) {
             console.log("error: ", err);
             result(err, null);

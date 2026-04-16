@@ -37,7 +37,7 @@ block content
                 div.form-group
                     label(for="time") Preferred Time
                     input(type="time", id="time", required)
-                div.form-group
-                    label(for="address") Service Address
-                    textarea(id="address", placeholder="Enter your full address", required)
+                div#address-notice(style="margin-bottom: 1.5rem; padding: 1rem; background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; color: #856404; font-size: 0.9rem;")
+                    i.fas.fa-info-circle(style="margin-right: 0.5rem;")
+                    span The service will be performed at your saved profile address.
                 button(type="submit", class="button") Confirm & "Pay"

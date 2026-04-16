@@ -36,25 +36,76 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Function to update UI based on authentication status
     const updateAuthUI = () => {
         const isLoggedIn = localStorage.getItem('token') !== null;
-        const navLogin = document.getElementById('nav-login');
-        const navSignup = document.getElementById('nav-signup');
-        const navProfile = document.getElementById('nav-profile');
-        const navLogout = document.getElementById('nav-logout');
+        const guestLinks = document.getElementById('guest-links');
+        const userDropdown = document.getElementById('user-dropdown');
+        const bookingsLink = document.getElementById('nav-bookings-link');
 
-        if (navLogin && navSignup && navProfile && navLogout) {
-            if (isLoggedIn) {
-                navLogin.style.display = 'none';
-                navSignup.style.display = 'none';
-                navProfile.style.display = 'list-item';
-                navLogout.style.display = 'list-item';
-            } else {
-                navLogin.style.display = 'list-item';
-                navSignup.style.display = 'list-item';
-                navProfile.style.display = 'none';
-                navLogout.style.display = 'none';
+        if (isLoggedIn) {
+            if (guestLinks) guestLinks.style.display = 'none';
+            if (userDropdown) userDropdown.style.display = 'block';
+            if (bookingsLink) bookingsLink.style.display = 'list-item';
+            
+            // Set username
+            const userId = localStorage.getItem('userId');
+            const token = localStorage.getItem('token');
+            if (userId && token) {
+                fetch(`/api/profile/${userId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(res => res.json())
+                .then(user => {
+                    const navUsername = document.getElementById('nav-username');
+                    if (navUsername && user.name) {
+                        navUsername.textContent = user.name.split(' ')[0];
+                    }
+                })
+                .catch(() => {});
             }
+        } else {
+            if (guestLinks) guestLinks.style.display = 'flex';
+            if (userDropdown) userDropdown.style.display = 'none';
+            if (bookingsLink) bookingsLink.style.display = 'none';
         }
     };
+
+    // --- Dropdown Logic ---
+    const dropdownTrigger = document.getElementById('dropdown-trigger');
+    const dropdownMenu = document.getElementById('dropdown-menu');
+
+    if (dropdownTrigger && dropdownMenu) {
+        dropdownTrigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdownMenu.classList.toggle('show');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!dropdownTrigger.contains(e.target) && !dropdownMenu.contains(e.target)) {
+                dropdownMenu.classList.remove('show');
+            }
+        });
+    }
+
+    // --- Mobile Menu Logic ---
+    const mobileToggle = document.getElementById('mobile-toggle');
+    const navMenu = document.getElementById('nav-menu');
+
+    if (mobileToggle && navMenu) {
+        mobileToggle.addEventListener('click', () => {
+            navMenu.classList.toggle('mobile-show');
+            mobileToggle.querySelector('i').classList.toggle('fa-bars');
+            mobileToggle.querySelector('i').classList.toggle('fa-xmark');
+        });
+    }
+
+    // --- Logout ---
+    const handleLogout = (e) => {
+        if (e) e.preventDefault();
+        localStorage.removeItem('token');
+        localStorage.removeItem('userId');
+        window.location.href = '/login';
+    };
+
+    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
 
     // Initial UI update
     updateAuthUI();
@@ -376,7 +427,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 const date = document.querySelector('#date').value;
                 const time = document.querySelector('#time').value;
-                const address = document.querySelector('#address').value;
+
+                // 1. Strict Address Validation (Frontend)
+                try {
+                    const profileRes = await fetchAuthenticated(`/api/profile/${userId}`);
+                    const profileData = await profileRes.json();
+                    
+                    if (!profileData.address || !profileData.address.address) {
+                        alert('Please add your address in your profile before booking a service.');
+                        window.location.href = '/profile';
+                        return;
+                    }
+                } catch (err) {
+                    console.error("Address validation error:", err);
+                }
 
                 // Validation for availability
                 const isWithinSlot = availableSlots.some(slot => {
@@ -403,28 +467,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 submitBtn.innerHTML = '<span class="spinner"></span> Processing...';
 
                 try {
-                    // First, save the address
-                    const addressResponse = await fetchAuthenticated(`/api/profile/${userId}/addresses`, {
-                        method: 'POST',
-                        body: JSON.stringify({ address: address, city: '', state: '', zip_code: '' })
-                    });
-                    
-                    if (!addressResponse) {
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnText;
-                        return;
-                    }
-                    
-                    const addressData = await addressResponse.json();
-                    if (!addressResponse.ok) {
-                        alert('Error saving address: ' + (addressData.message || 'Unknown error'));
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnText;
-                        return;
-                    }
-                    const addressId = addressData.id;
-
-                    // Create the booking
+                    // Create the booking (Backend will also validate address)
                     const bookingResponse = await fetchAuthenticated('/api/bookings', {
                         method: 'POST',
                         body: JSON.stringify({
@@ -432,7 +475,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                             service_id: serviceId,
                             booking_date: date,
                             booking_time: time,
-                            address_id: addressId,
                             is_first_booking: isFirstBooking
                         })
                     });
@@ -463,10 +505,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- Profile Page Logic ---
-    if (window.location.pathname.endsWith('profile.html') || window.location.pathname === '/profile') {
-        const userDetailsContainer = document.querySelector('.user-details');
-        const userAddressesContainer = document.querySelector('.user-addresses');
-        const userBookingsContainer = document.querySelector('.user-bookings');
+    if (window.location.pathname === '/profile') {
         const userId = localStorage.getItem('userId');
         const token = localStorage.getItem('token');
 
@@ -476,44 +515,139 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        // Fetch User Details
-        const userDetailsResponse = await fetchAuthenticated(`/api/profile/${userId}`);
-        if (!userDetailsResponse) return;
-        const user = await userDetailsResponse.json();
-        if (user) {
-            userDetailsContainer.innerHTML = `
-                <p><strong>Email:</strong> ${user.email}</p>
-                <p><strong>Member Since:</strong> ${new Date(user.created_at).toLocaleDateString()}</p>
-            `;
+        const escapeHTML = (str) => {
+            if (!str) return '';
+            return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        };
+
+        const fetchProfileData = async () => {
+            try {
+                // Fetch User & Address Details
+                const userResponse = await fetchAuthenticated(`/api/profile/${userId}`);
+                if (userResponse && userResponse.ok) {
+                    const user = await userResponse.json();
+                    
+                    // Summary Card
+                    document.getElementById('summary-name').textContent = user.name;
+                    document.getElementById('summary-email').textContent = user.email;
+                    
+                    // Info Fields
+                    document.getElementById('field-name').textContent = user.name || 'Not provided';
+                    document.getElementById('field-email').textContent = user.email;
+                    document.getElementById('field-phone').textContent = user.phone || 'Not provided';
+                    document.getElementById('field-joined').textContent = new Date(user.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+                    
+                    // Address Formatting
+                    const addrField = document.getElementById('field-address');
+                    const quickAddBtn = document.getElementById('add-address-quick-btn');
+                    
+                    if (user.address && user.address.address) {
+                        const a = user.address;
+                        addrField.textContent = `${a.address}, ${a.city}, ${a.state} - ${a.zip_code}`;
+                        if (quickAddBtn) quickAddBtn.style.display = 'none';
+                        
+                        // Pre-fill Edit Form
+                        document.getElementById('edit-address').value = a.address || '';
+                        document.getElementById('edit-city').value = a.city || '';
+                        document.getElementById('edit-state').value = a.state || '';
+                        document.getElementById('edit-zip').value = a.zip_code || '';
+                    } else {
+                        addrField.textContent = 'No address added. Please add address from Edit Profile.';
+                        if (quickAddBtn) {
+                            quickAddBtn.style.display = 'flex';
+                            quickAddBtn.onclick = () => {
+                                document.getElementById('edit-profile-btn').click();
+                                document.getElementById('edit-address').focus();
+                            };
+                        }
+                    }
+                    
+                    // Edit Form Init (Base Info)
+                    document.getElementById('edit-name').value = user.name || '';
+                    document.getElementById('edit-phone').value = user.phone || '';
+                }
+
+                // Fetch Bookings
+                const bookingsResponse = await fetchAuthenticated(`/api/profile/${userId}/bookings`);
+                if (bookingsResponse && bookingsResponse.ok) {
+                    const bookings = await bookingsResponse.json();
+                    const container = document.getElementById('bookings-container');
+                    
+                    if (bookings.length > 0) {
+                        container.innerHTML = bookings.map(booking => {
+                            const statusClass = 'status-' + booking.status.toLowerCase().replace(' ', '-');
+                            return `
+                                <div class="booking-card" onclick="window.location.href='/booking-details?id=${booking.booking_id}'">
+                                    <div class="booking-card-header">
+                                        <span class="booking-service-name">${escapeHTML(booking.service_name)}</span>
+                                        <span class="status-badge ${statusClass}">${booking.status}</span>
+                                    </div>
+                                    <div class="booking-meta">
+                                        <div class="meta-item">
+                                            <i class="fas fa-user-tie"></i>
+                                            <span>${escapeHTML(booking.partner_name)}</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-calendar-day"></i>
+                                            <span>${new Date(booking.booking_date).toLocaleDateString()}</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-clock"></i>
+                                            <span>${booking.booking_time}</span>
+                                        </div>
+                                        <div class="meta-item">
+                                            <i class="fas fa-pound-sign"></i>
+                                            <span style="font-weight: 700;">${parseFloat(booking.total_cost).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 3rem;">You have no bookings yet.</div>';
+                    }
+                }
+            } catch (err) {
+                console.error("Profile load error:", err);
+            }
+        };
+
+        // Handle Profile Update
+        const editForm = document.getElementById('profile-edit-form');
+        if (editForm) {
+            editForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const updatedData = {
+                    name: document.getElementById('edit-name').value,
+                    phone: document.getElementById('edit-phone').value,
+                    address: {
+                        address: document.getElementById('edit-address').value,
+                        city: document.getElementById('edit-city').value,
+                        state: document.getElementById('edit-state').value,
+                        zip_code: document.getElementById('edit-zip').value
+                    }
+                };
+
+                try {
+                    const response = await fetchAuthenticated(`/api/profile/${userId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(updatedData)
+                    });
+
+                    if (response && response.ok) {
+                        alert('Profile and address updated successfully!');
+                        window.location.reload();
+                    } else {
+                        const err = await response.json();
+                        alert('Update failed: ' + err.message);
+                    }
+                } catch (err) {
+                    alert('An error occurred while updating profile.');
+                }
+            });
         }
 
-        // Fetch User Addresses
-        const userAddressesResponse = await fetchAuthenticated(`/api/profile/${userId}/addresses`);
-        if (!userAddressesResponse) return;
-        const addresses = await userAddressesResponse.json();
-        if (addresses && addresses.length > 0) {
-            userAddressesContainer.innerHTML = '<ul>' + addresses.map(addr => `<li>${addr.address}, ${addr.city || ''}</li>`).join('') + '</ul>';
-        } else {
-            userAddressesContainer.innerHTML = '<p>No saved addresses.</p>';
-        }
-
-        // Fetch User Bookings
-        const userBookingsResponse = await fetchAuthenticated(`/api/profile/${userId}/bookings`);
-        if (!userBookingsResponse) return;
-        const bookings = await userBookingsResponse.json();
-        if (bookings && bookings.length > 0) {
-            userBookingsContainer.innerHTML = bookings.map(booking => `
-                <div class="booking-item" style="cursor: pointer;" onclick="window.location.href='/booking-details?id=${booking.booking_id}'">
-                    <p><strong>Booking ID:</strong> ${booking.booking_id}</p>
-                    <p><strong>Service:</strong> ${booking.service_name} with ${booking.partner_name}</p>
-                    <p><strong>Date:</strong> ${new Date(booking.booking_date).toLocaleDateString()} at ${booking.booking_time}</p>
-                    <p><strong>Status:</strong> <span class="status-badge status-${booking.status.toLowerCase()}">${booking.status}</span></p>
-                    <p><strong>Total Cost:</strong> £${booking.total_cost}</p>
-                </div>
-            `).join('');
-        } else {
-            userBookingsContainer.innerHTML = '<p>You have no past or upcoming bookings.</p>';
-        }
+        fetchProfileData();
     }
 
     // --- Booking Details Page Logic ---

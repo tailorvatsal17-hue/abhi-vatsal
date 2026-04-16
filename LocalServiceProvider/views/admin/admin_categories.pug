@@ -1,58 +1,40 @@
-doctype html
-html(lang="en")
-    head
-        meta(charset="UTF-8")
-        meta(name="viewport", content="width=device-width, initial-scale=1.0")
-        title Manage Categories - Admin
-        link(rel="stylesheet", href="/admin/admin.css")
-        link(rel="stylesheet", href="/css/style.css")
-    body
-        div.admin-panel
-            div.sidebar
-                h2 Local Service Provider Admin
-                nav
-                    ul
-                        li: a(href="/admin/dashboard") Dashboard
-                        li: a(href="/admin/users") Users
-                        li: a(href="/admin/partners") Partners
-                        li: a(href="/admin/withdrawals") Withdrawals
-                        li: a(href="/admin/payments") Payments
-                        li: a(href="/admin/categories", class="active") Categories
-                        li: a(href="/admin/disputes") Disputes
-                        li: a(href="/admin/services") Services
-                        li: a(href="/admin/bookings") Bookings
-                        li: a(href="#", id="admin-logout-btn") Logout
-            div.main-content
-                header
-                    h1 Manage Service Categories
-                main
-                    div.add-service-form(style="margin-bottom: 2rem; background-color: #fff; padding: 1.5rem; border-radius: 10px; box-shadow: var(--shadow);")
-                        h3 Add New Category
-                        form#add-category-form(style="display: flex; gap: 1rem; flex-direction: column;")
-                            input(type="text", id="category-name", placeholder="Category Name", required, style="padding: 0.8rem;")
-                            textarea(id="category-desc", placeholder="Description", style="padding: 0.8rem;")
-                            input(type="text", id="category-image", placeholder="Image URL (optional)", style="padding: 0.8rem;")
-                            button(type="submit", class="button") Add Category
-                    
-                    h3 Existing Categories
-                    div#categories-table-container
-                        p Loading categories...
+extends admin_layout
 
-        div#edit-category-modal.modal(style="display: none;")
-            div.modal-content(style="max-width: 500px;")
-                span.close-modal#close-edit-modal &times;
-                h2 Edit Category
-                form#edit-category-form(style="display: flex; gap: 1rem; flex-direction: column;")
-                    input(type="hidden", id="edit-category-id")
-                    div.form-group
-                        label(for="edit-category-name") Name
-                        input(type="text", id="edit-category-name", required, style="width: 100%; padding: 0.8rem;")
-                    div.form-group
-                        label(for="edit-category-desc") Description
-                        textarea(id="edit-category-desc", style="width: 100%; padding: 0.8rem;")
-                    div.form-group
-                        label(for="edit-category-image") Image URL
-                        input(type="text", id="edit-category-image", style="width: 100%; padding: 0.8rem;")
-                    button.button(type="submit") Update Category
+block content
+    div.admin-table-container(style="margin-bottom: 3rem;")
+        h3 <i class="fas fa-folder-plus"></i> Add New Category
+        form#add-category-form(style="margin-top: 1.5rem;")
+            div.form-grid(style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;")
+                div.form-group
+                    label Category Name
+                    input(type="text", id="category-name", placeholder="e.g. Plumbing", required, style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);")
+                div.form-group
+                    label Image URL (Optional)
+                    input(type="text", id="category-image", placeholder="https://example.com/cat.jpg", style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);")
+            div.form-group(style="margin-bottom: 1.5rem;")
+                label Description
+                textarea(id="category-desc", placeholder="Describe this category", style="width: 100%; height: 80px; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);")
+            button(type="submit", class="button button-success") <i class="fas fa-plus"></i> Add Category
+    
+    div.admin-table-container
+        h3 <i class="fas fa-th-list"></i> Existing Categories
+        div#categories-table-container(style="margin-top: 1.5rem;")
+            p.text-center Loading categories...
 
-        script(src="/admin/admin.js")
+    div#edit-category-modal.modal
+        div.modal-content
+            span.close-modal#close-edit-modal &times;
+            h2 <i class="fas fa-edit"></i> Edit Category
+            form#edit-category-form(style="margin-top: 1.5rem;")
+                input(type="hidden", id="edit-category-id")
+                div.form-group(style="margin-bottom: 1.25rem;")
+                    label Name
+                    input(type="text", id="edit-category-name", required, style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);")
+                div.form-group(style="margin-bottom: 1.25rem;")
+                    label Description
+                    textarea(id="edit-category-desc", style="width: 100%; height: 80px; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);")
+                div.form-group(style="margin-bottom: 1.5rem;")
+                    label Image URL
+                    input(type="text", id="edit-category-image", style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);")
+                div(style="display: flex; justify-content: flex-end;")
+                    button.button.button-success(type="submit") <i class="fas fa-check"></i> Update Category

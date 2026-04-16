@@ -8,6 +8,7 @@ module.exports = app => {
 
     // Public routes (no token required)
     router.post('/signup', partners.signup);
+    router.post('/verify-otp', partners.verifyOtp);
     router.post('/login', partners.login);
     router.get('/:partnerId/availability', partnerAvailability.getAvailabilityByPartnerId);
 

@@ -17,6 +17,7 @@ module.exports = app => {
 
     // Get all partners
     router.get('/partners', admin.getAllPartners);
+    router.get('/partners/:id', admin.getPartnerById);
     router.put('/partners/:id/suspend', admin.togglePartnerSuspension);
 
     // Update partner details (includes approval, description, pricing)

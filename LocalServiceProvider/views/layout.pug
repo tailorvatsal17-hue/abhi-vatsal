@@ -4,20 +4,57 @@ html(lang="en")
         meta(charset="UTF-8")
         meta(name="viewport", content="width=device-width, initial-scale=1.0")
         title #{title} - Local Service Provider
+        link(rel="stylesheet", href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css")
         link(rel="stylesheet", href="/css/style.css")
         block styles
     body
         header
-            nav
-                div.logo
-                    a(href="/") Local Service Provider
-                ul#main-nav-links
-                    li: a(href="/") Home
-                    li: a(href="/services") Services
-                    li#nav-login: a(href="/login") Login
-                    li#nav-signup: a(href="/signup", class="button") Sign Up
-                    li#nav-profile(style="display:none;"): a(href="/profile") Profile
-                    li#nav-logout(style="display:none;"): a(href="#", class="button", id="logout-btn") Logout
+            nav.navbar
+                div.nav-container
+                    div.nav-left
+                        a.logo(href="/") 
+                            i.fas.fa-house-chimney
+                            span LocalService
+                    
+                    button.mobile-toggle#mobile-toggle
+                        i.fas.fa-bars
+
+                    div.nav-center#nav-menu
+                        ul.nav-links
+                            li: a(href="/", class=(title === 'Home' ? 'active' : '')) 
+                                i.fas.fa-home
+                                span Home
+                            li: a(href="/services", class=(title === 'All Services' ? 'active' : '')) 
+                                i.fas.fa-briefcase
+                                span Professionals
+                            li#nav-bookings-link(style="display:none;"): a(href="/profile#bookings") 
+                                i.fas.fa-calendar-check
+                                span My Bookings
+
+                    div.nav-right#nav-auth
+                        //- Guest Group
+                        div#guest-links.auth-group
+                            a.login-link(href="/login") Login
+                            a.register-btn(href="/signup") Register
+                        
+                        //- User Group (Dropdown)
+                        div#user-dropdown.nav-dropdown(style="display:none;")
+                            button.dropdown-trigger#dropdown-trigger
+                                div.avatar
+                                    i.fas.fa-user-circle
+                                span.username#nav-username User
+                                i.fas.fa-chevron-down.chevron
+                            div.dropdown-menu#dropdown-menu
+                                a(href="/profile")
+                                    i.fas.fa-user
+                                    span View Profile
+                                a(href="/profile#bookings")
+                                    i.fas.fa-list-ul
+                                    span My Bookings
+                                div.dropdown-divider
+                                a#logout-btn(href="#")
+                                    i.fas.fa-sign-out-alt
+                                    span Logout
 
         main
             block content

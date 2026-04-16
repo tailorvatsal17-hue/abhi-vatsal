@@ -1,133 +1,32 @@
-extends ../layout
-
-block styles
-    style.
-        .upload-container {
-            max-width: 800px;
-            margin: 2rem auto;
-            background: #fff;
-            padding: 2.5rem;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-        }
-        .document-list {
-            margin-top: 2rem;
-        }
-        .document-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            margin-bottom: 1rem;
-        }
-        .status-badge {
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-        .status-pending { background: #fff3cd; color: #856404; }
-        .status-verified { background: #d4edda; color: #155724; }
-        .status-rejected { background: #f8d7da; color: #721c24; }
-        .status-under-review { background: #cce5ff; color: #004085; }
+extends partner_layout
 
 block content
-    section.upload-section
-        div.container
-            div.upload-container
-                h2 Upload Verification Documents
-                p(style="color: #666; margin-bottom: 2rem;") Please upload your ID proof and professional certificates for account verification.
-
-                form#upload-doc-form(enctype="multipart/form-data")
-                    div.form-group(style="margin-bottom: 1.5rem;")
-                        label(for="document-type") Document Type
-                        select#document-type(name="document_type", required, style="width: 100%; padding: 0.8rem;")
-                            option(value="ID Proof") ID Proof (Passport/Driving License)
-                            option(value="Professional Certificate") Professional Certificate
-                            option(value="Business License") Business License
-                            option(value="Insurance") Insurance Document
-                    
-                    div.form-group(style="margin-bottom: 1.5rem;")
-                        label(for="document") Select File (PDF, JPG, PNG - Max 5MB)
-                        input#document(type="file", name="document", accept=".pdf,.jpg,.jpeg,.png", required, style="width: 100%; padding: 0.5rem;")
-                    
-                    button.button(type="submit", style="width: 100%;") Upload Document
-
-                div.document-list
-                    h3 Your Uploaded Documents
-                    div#docs-table-container
-                        p Loading documents...
-
-block scripts
-    script.
-        document.addEventListener('DOMContentLoaded', () => {
-            const uploadForm = document.getElementById('upload-doc-form');
-            const docsContainer = document.getElementById('docs-table-container');
-            const token = localStorage.getItem('partnerToken');
-
-            const fetchDocuments = async () => {
-                try {
-                    const response = await fetch('/api/partners/documents/my', {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    const docs = await response.json();
-                    
-                    if (docs.length === 0) {
-                        docsContainer.innerHTML = '<p>No documents uploaded yet.</p>';
-                        return;
-                    }
-
-                    let html = '<table style="width: 100%; border-collapse: collapse; margin-top: 1rem;">';
-                    html += '<thead><tr style="border-bottom: 2px solid #eee; text-align: left;"><th style="padding: 1rem;">Type</th><th style="padding: 1rem;">Status</th><th style="padding: 1rem;">Action</th></tr></thead><tbody>';
-                    
-                    docs.forEach(doc => {
-                        const statusClass = 'status-' + doc.status.toLowerCase().replace(' ', '-');
-                        html += `<tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 1rem;">${doc.document_type}</td>
-                            <td style="padding: 1rem;"><span class="status-badge ${statusClass}">${doc.status}</span></td>
-                            <td style="padding: 1rem;"><a href="${doc.document_url}" target="_blank" style="color: var(--primary-color);">View File</a></td>
-                        </tr>`;
-                    });
-                    
-                    html += '</tbody></table>';
-                    docsContainer.innerHTML = html;
-                } catch (err) {
-                    docsContainer.innerHTML = '<p>Error loading documents.</p>';
-                }
-            };
-
-            uploadForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(uploadForm);
-                const submitBtn = uploadForm.querySelector('button');
+    div.table-card(style="max-width: 600px; margin-bottom: 2rem;")
+        div.table-header
+            h2 <i class="fas fa-file-upload"></i> Upload Verification Documents
+        div(style="padding: 1.5rem;")
+            p(style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.5rem;") Upload your ID proof and professional certificates for account verification. Trusted partners get more bookings!
+            
+            form#upload-doc-form(enctype="multipart/form-data")
+                div.form-group
+                    label(for="document-type") Document Category
+                    select#document-type(name="document_type", required)
+                        option(value="ID Proof") ID Proof (Passport/License)
+                        option(value="Professional Certificate") Professional Certificate
+                        option(value="Business License") Business License
+                        option(value="Insurance") Insurance Document
                 
-                try {
-                    submitBtn.disabled = true;
-                    submitBtn.innerText = 'Uploading...';
-                    
-                    const response = await fetch('/api/partners/documents/upload', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        body: formData
-                    });
-                    
-                    const result = await response.json();
-                    if (response.ok) {
-                        alert('Document uploaded successfully!');
-                        uploadForm.reset();
-                        fetchDocuments();
-                    } else {
-                        alert('Upload failed: ' + result.message);
-                    }
-                } catch (err) {
-                    alert('An error occurred during upload.');
-                } finally {
-                    submitBtn.disabled = false;
-                    submitBtn.innerText = 'Upload Document';
-                }
-            });
+                div.form-group
+                    label(for="document") Select File (PDF, JPG, PNG - Max 5MB)
+                    input#document(type="file", name="document", accept=".pdf,.jpg,.jpeg,.png", required)
+                
+                button.button.button-primary(type="submit", style="width: 100%;") 
+                    i.fas.fa-upload
+                    span Upload Document
 
-            fetchDocuments();
-        });
+    div.table-card
+        div.table-header
+            h2 <i class="fas fa-shield-alt"></i> Verification Status
+        div.table-responsive
+            div#docs-table-container
+                p.text-center(style="padding: 2rem;") Loading documents...

@@ -5,7 +5,7 @@ const ServiceCategory = require('../models/service_category.model.js');
 const Dispute = require('../models/dispute.model.js');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+const emailService = require('../services/email.service.js');
 
 // Login
 exports.login = (req, res) => {
@@ -84,6 +84,23 @@ exports.getAllPartners = (req, res) => {
     });
 };
 
+// Get single partner details
+exports.getPartnerById = (req, res) => {
+    Partner.findById(req.params.id, (err, data) => {
+        if (err) {
+            if (err.kind === "not_found") {
+                res.status(404).send({
+                    message: `Not found Partner with id ${req.params.id}.`
+                });
+            } else {
+                res.status(500).send({
+                    message: "Error retrieving Partner with id " + req.params.id
+                });
+            }
+        } else res.send(data);
+    });
+};
+
 // Approve partner
 exports.approvePartner = (req, res) => {
     Partner.findById(req.params.id, (err, partner) => {
@@ -95,30 +112,18 @@ exports.approvePartner = (req, res) => {
             }
         }
 
-        Admin.approvePartner(req.params.id, (err, data) => {
+        Admin.approvePartner(req.params.id, async (err, data) => {
             if (err) {
                 return res.status(500).send({ message: "Error updating Partner approval status." });
             }
 
-            const transporter = nodemailer.createTransport({
-                service: 'gmail',
-                auth: {
-                    user: 'tailorvatsal17@gmail.com',
-                    pass: 'hzzw xsat yulx ouph'
-                }
-            });
-
-            const mailOptions = {
-                from: 'tailorvatsal17@gmail.com',
-                to: partner.email,
-                subject: 'Account Approved - Local Service Provider',
-                text: `Congratulations ${partner.name}! Your account has been approved by our admin. You can now login and start offering your services.`
-            };
-
-            transporter.sendMail(mailOptions, (error, info) => {
-                if (error) console.log("Email error:", error);
-                res.send({ message: "Partner approved successfully." });
-            });
+            try {
+                await emailService.sendApprovalEmail(partner.email, partner.name);
+                res.send({ message: "Partner approved successfully and notification email sent." });
+            } catch (error) {
+                console.log("Email error:", error);
+                res.send({ message: "Partner approved successfully, but notification email could not be sent." });
+            }
         });
     });
 };
@@ -148,28 +153,17 @@ exports.rejectPartner = (req, res) => {
             }
 
             // 3. Send rejection email
-            const transporter = nodemailer.createTransport({
-                service: 'gmail',
-                auth: {
-                    user: 'tailorvatsal17@gmail.com',
-                    pass: 'hzzw xsat yulx ouph'
-                }
-            });
-
-            const mailOptions = {
-                from: 'tailorvatsal17@gmail.com',
-                to: partner.email,
-                subject: 'Account Registration Status - Local Service Provider',
-                text: `Hello ${partner.name}, we regret to inform you that your partner account application has been rejected by our admin. If you believe this is an error, please contact our support.`
-            };
-
-            transporter.sendMail(mailOptions, (error, info) => {
-                if (error) {
+            const subject = 'Account Registration Status - Local Service Provider';
+            const text = `Hello ${partner.name}, we regret to inform you that your partner account application has been rejected by our admin. If you believe this is an error, please contact our support.`;
+            
+            emailService.sendEmail(partner.email, subject, text)
+                .then(() => {
+                    res.send({ message: "Partner was rejected successfully and notification email sent." });
+                })
+                .catch(error => {
                     console.log("Email sending error:", error);
-                    return res.send({ message: "Partner was rejected successfully, but could not send notification email." });
-                }
-                res.send({ message: "Partner was rejected successfully and notification email sent." });
-            });
+                    res.send({ message: "Partner was rejected successfully, but could not send notification email." });
+                });
         });
     });
 };
@@ -299,16 +293,10 @@ exports.updateWithdrawalStatus = (req, res) => {
         sql.query(`SELECT w.amount, p.email, p.name FROM withdrawal_requests w JOIN partners p ON w.partner_id = p.id WHERE w.id = ?`, [id], (err, rows) => {
             if (rows && rows.length > 0) {
                 const { amount, email, name } = rows[0];
-                const transporter = nodemailer.createTransport({
-                    service: 'gmail',
-                    auth: { user: 'tailorvatsal17@gmail.com', pass: 'hzzw xsat yulx ouph' }
-                });
-                transporter.sendMail({
-                    from: 'tailorvatsal17@gmail.com',
-                    to: email,
-                    subject: `Withdrawal Request ${status}`,
-                    text: `Hello ${name}, your withdrawal request for £${amount} has been ${status.toLowerCase()}.`
-                });
+                const subject = `Withdrawal Request ${status}`;
+                const text = `Hello ${name}, your withdrawal request for £${amount} has been ${status.toLowerCase()}.`;
+                
+                emailService.sendEmail(email, subject, text).catch(e => console.log("Email error:", e));
             }
         });
         res.send({ message: `Withdrawal ${status.toLowerCase()} successfully.` });

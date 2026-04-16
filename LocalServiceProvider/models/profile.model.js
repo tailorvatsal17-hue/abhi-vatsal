@@ -3,7 +3,15 @@ const sql = require('./db.js');
 const Profile = {};
 
 Profile.getProfile = (id, result) => {
-    sql.query("SELECT id, email, created_at FROM users WHERE id = ?", [id], (err, res) => {
+    // Fetch user details and join with the default address from the addresses table
+    const query = `
+        SELECT u.id, u.name, u.email, u.phone, u.created_at,
+               a.address, a.city, a.state, a.zip_code
+        FROM users u
+        LEFT JOIN addresses a ON u.id = a.user_id AND a.is_default = 1
+        WHERE u.id = ?`;
+
+    sql.query(query, [id], (err, res) => {
         if (err) {
             console.log("error: ", err);
             result(err, null);
@@ -11,35 +19,77 @@ Profile.getProfile = (id, result) => {
         }
 
         if (res.length) {
-            console.log("found user: ", res[0]);
-            result(null, res[0]);
+            const userData = res[0];
+            const combinedData = {
+                id: userData.id,
+                name: userData.name,
+                email: userData.email,
+                phone: userData.phone,
+                created_at: userData.created_at,
+                address: userData.address ? {
+                    address: userData.address,
+                    city: userData.city,
+                    state: userData.state,
+                    zip_code: userData.zip_code
+                } : null
+            };
+            console.log("found user with address: ", combinedData);
+            result(null, combinedData);
             return;
         }
 
-        // not found User with the id
         result({ kind: "not_found" }, null);
     });
 };
 
-Profile.updateProfile = (id, user, result) => {
+Profile.updateProfile = (id, data, result) => {
+    // 1. Update basic user info
     sql.query(
-        "UPDATE users SET email = ? WHERE id = ?",
-        [user.email, id],
+        "UPDATE users SET name = ?, phone = ? WHERE id = ?",
+        [data.name, data.phone, id],
         (err, res) => {
             if (err) {
-                console.log("error: ", err);
-                result(null, err);
+                console.log("error updating user: ", err);
+                result(err, null);
                 return;
             }
 
-            if (res.affectedRows == 0) {
-                // not found User with the id
-                result({ kind: "not_found" }, null);
-                return;
-            }
+            // 2. Handle Address Upsert
+            if (data.address) {
+                const addr = data.address;
+                // Check if user already has an address
+                sql.query("SELECT id FROM addresses WHERE user_id = ?", [id], (err, rows) => {
+                    if (err) {
+                        console.log("error checking address: ", err);
+                        result(null, { id: id, ...data }); // Still return success for user update
+                        return;
+                    }
 
-            console.log("updated user: ", { id: id, ...user });
-            result(null, { id: id, ...user });
+                    if (rows.length > 0) {
+                        // UPDATE existing address
+                        sql.query(
+                            "UPDATE addresses SET address = ?, city = ?, state = ?, zip_code = ?, is_default = 1 WHERE user_id = ?",
+                            [addr.address, addr.city, addr.state, addr.zip_code, id],
+                            (err, resAddr) => {
+                                if (err) console.log("error updating address: ", err);
+                                result(null, { id: id, ...data });
+                            }
+                        );
+                    } else {
+                        // INSERT new address
+                        sql.query(
+                            "INSERT INTO addresses (user_id, address, city, state, zip_code, is_default) VALUES (?, ?, ?, ?, ?, 1)",
+                            [id, addr.address, addr.city, addr.state, addr.zip_code],
+                            (err, resAddr) => {
+                                if (err) console.log("error inserting address: ", err);
+                                result(null, { id: id, ...data });
+                            }
+                        );
+                    }
+                });
+            } else {
+                result(null, { id: id, ...data });
+            }
         }
     );
 };

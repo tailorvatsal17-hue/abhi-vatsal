@@ -1,90 +1,98 @@
-doctype html
-html(lang="en")
-    head
-        meta(charset="UTF-8")
-        meta(name="viewport", content="width=device-width, initial-scale=1.0")
-        title Partner Dashboard - Local Service Provider
-        link(rel="stylesheet", href="/partner/partner.css")
-        link(rel="stylesheet", href="/css/style.css")
-    body
-        div.partner-panel
-            div.sidebar
-                h2 Partner Dashboard
-                nav
-                    ul
-                        li: a(href="/partner/dashboard", class="active") Dashboard
-                        li: a(href="#earnings-section", id="earnings-link") Earnings
-                        li: a(href="#withdrawal-section", id="withdrawal-link") Withdraw Funds
-                        li: a(href="/partner/bookings") Bookings
-                        li: a(href="/partner/profile") Profile
-                        li: a(href="/partner/services") Manage Services
-                        li: a(href="/partner/documents") Verification Documents
-                        li: a(href="#availability-management", id="availability-link") Availability
-                        li: a(href="#", id="partner-logout-btn") Logout
-            div.main-content
-                header
-                    h1 Dashboard
-                main
-                    div.dashboard-stats
-                        div.stat-card
-                            h3 Total Bookings
-                            p#total-bookings 0
-                        div.stat-card
-                            h3 Pending Bookings
-                            p#pending-bookings 0
-                        div.stat-card
-                            h3 Completed Bookings
-                            p#completed-bookings 0
-                        div.stat-card
-                            h3 Total Earnings
-                            p#total-earnings £0
-                    div.recent-bookings
-                        h2 Recent Booking Requests
-                        div#bookings-table
+extends partner_layout
 
-                    div#earnings-section.earnings-section(style="display: none;")
-                        h2 Detailed Earnings
-                        div.stat-card(style="max-width: 300px; margin-bottom: 2rem;")
-                            h3 Cumulative Revenue
-                            p#detailed-total-earnings £0
-                        
-                        h3 Recent Transactions
-                        div#earnings-table-container
-                            p No transactions found.
+block content
+    div#dashboard-overview.dashboard-section.active
+        div.dashboard-stats
+            div.stat-card
+                div
+                    h3 Total Bookings
+                    p#total-bookings 0
+                i.fas.fa-calendar-alt.fa-2x(style="color: var(--info-color); opacity: 0.3;")
+            div.stat-card
+                div
+                    h3 Pending Bookings
+                    p#pending-bookings 0
+                i.fas.fa-clock.fa-2x(style="color: var(--warning-color); opacity: 0.3;")
+            div.stat-card
+                div
+                    h3 Completed Bookings
+                    p#completed-bookings 0
+                i.fas.fa-check-circle.fa-2x(style="color: var(--success-color); opacity: 0.3;")
+            div.stat-card
+                div
+                    h3 Total Earnings
+                    p#total-earnings £0
+                i.fas.fa-pound-sign.fa-2x(style="color: var(--success-color); opacity: 0.3;")
 
-                    div#withdrawal-section.withdrawal-section(style="display: none;")
-                        h2 Withdraw Funds
-                        div.stat-card(style="max-width: 300px; margin-bottom: 2rem;")
-                            h3 Available for Withdrawal
-                            p#available-balance £0
-                        
-                        div.add-service-box(style="margin-bottom: 2rem;")
-                            h3 Request Withdrawal
-                            form#withdrawal-request-form
-                                div.form-group
-                                    label(for="withdrawal-amount") Amount to Withdraw (GBP £):
-                                    input(type="number", id="withdrawal-amount", step="0.01", min="1", required, style="width: 100%; padding: 0.8rem; margin-bottom: 1rem;")
-                                button.button(type="submit", style="width: 100%;") Submit Request
+        div.table-card.recent-bookings
+            div.table-header
+                h2 <i class="fas fa-history"></i> Recent Booking Requests
+                a.button.button-outline.button-sm(href="/partner/bookings") View All
+            div.table-responsive
+                div#bookings-table
+                    p.text-center(style="padding: 2rem;") Loading bookings...
 
-                        h3 Withdrawal History
-                        div#withdrawal-history-container
-                            p No withdrawal requests found.
+    div#earnings-section.dashboard-section
+        div.dashboard-stats
+            div.stat-card
+                div
+                    h3 Cumulative Revenue
+                    p#detailed-total-earnings £0
+                i.fas.fa-chart-line.fa-2x(style="color: var(--success-color); opacity: 0.3;")
+        
+        div.table-card
+            div.table-header
+                h2 <i class="fas fa-list-ul"></i> Recent Transactions
+            div.table-responsive
+                div#earnings-table-container
+                    p.text-center(style="padding: 2rem;") No transactions found.
 
-                    div#availability-management.availability-section
-                        h2 Manage Availability
-                        form#add-availability-form.availability-form
-                            label(for="available-date") Date:
-                            input(type="date", id="available-date", required)
+    div#withdrawal-section.dashboard-section
+        div.dashboard-stats
+            div.stat-card
+                div
+                    h3 Available for Withdrawal
+                    p#available-balance £0
+                i.fas.fa-piggy-bank.fa-2x(style="color: var(--primary-color); opacity: 0.3;")
+        
+        div.table-card(style="max-width: 500px;")
+            div.table-header
+                h2 <i class="fas fa-hand-holding-usd"></i> Request Withdrawal
+            div(style="padding: 1.5rem;")
+                form#withdrawal-request-form
+                    div.form-group
+                        label(for="withdrawal-amount") Amount to Withdraw (£)
+                        input(type="number", id="withdrawal-amount", step="0.01", min="1", placeholder="Enter amount", required)
+                    button.button.button-primary(type="submit", style="width: 100%;") Submit Request
 
-                            label(for="start-time") Start Time:
+        div.table-card
+            div.table-header
+                h2 <i class="fas fa-history"></i> Withdrawal History
+            div.table-responsive
+                div#withdrawal-history-container
+                    p.text-center(style="padding: 2rem;") No withdrawal requests found.
+
+    div#availability-management.dashboard-section
+        div.table-card(style="max-width: 600px;")
+            div.table-header
+                h2 <i class="fas fa-plus-circle"></i> Add Availability Slot
+            div(style="padding: 1.5rem;")
+                form#add-availability-form.availability-form
+                    div.form-group
+                        label(for="available-date") Date
+                        input(type="date", id="available-date", required)
+                    div(style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;")
+                        div.form-group
+                            label(for="start-time") Start Time
                             input(type="time", id="start-time", required)
-
-                            label(for="end-time") End Time:
+                        div.form-group
+                            label(for="end-time") End Time
                             input(type="time", id="end-time", required)
+                    button.button.button-primary(type="submit", style="width: 100%;") <i class="fas fa-plus"></i> Add Slot
 
-                            button(type="submit") Add Availability
-
-                        h3 Your Available Slots
-                        div#availability-table-container.availability-table
-
-        script(src="/partner/partner.js")
+        div.table-card
+            div.table-header
+                h2 <i class="fas fa-calendar-alt"></i> Your Available Slots
+            div.table-responsive
+                div#availability-table-container.availability-table
+                    p.text-center(style="padding: 2rem;") Loading availability...
