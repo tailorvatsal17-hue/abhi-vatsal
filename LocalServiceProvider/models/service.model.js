@@ -91,9 +91,10 @@ Service.search = (filters, result) => {
             let params = [];
 
             if (filters.keyword) {
-                query += " AND (LOWER(service_name) LIKE LOWER(?) OR LOWER(partner_name) LIKE LOWER(?) OR LOWER(category_name) LIKE LOWER(?) OR LOWER(description) LIKE LOWER(?))";
+                query += " AND (LOWER(service_name) LIKE LOWER(?) OR LOWER(partner_name) LIKE LOWER(?) OR LOWER(category_name) LIKE LOWER(?) OR LOWER(description) LIKE LOWER(?) OR service_name SOUNDS LIKE ? OR category_name SOUNDS LIKE ?)";
                 const searchTerm = `%${filters.keyword}%`;
-                params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+                const soundsLikeTerm = filters.keyword;
+                params.push(searchTerm, searchTerm, searchTerm, searchTerm, soundsLikeTerm, soundsLikeTerm);
             }
 
             if (filters.category_id) {
