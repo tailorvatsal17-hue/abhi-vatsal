@@ -112,7 +112,7 @@ exports.signup = (req, res) => {
                                     
                                     try {
                                         await emailService.sendOTPEmail(email, otp);
-                                        res.status(200).send({ message: "OTP sent to your email.", dev_otp: otp });
+                                        res.status(200).send({ message: "OTP sent to your email." });
                                     } catch (error) {
                                         return res.status(500).send({ message: "Error sending verification email." });
                                     }
@@ -127,10 +127,10 @@ exports.signup = (req, res) => {
 
                     try {
                         await emailService.sendOTPEmail(email, otp);
-                        res.status(200).send({ message: "OTP sent to your email.", dev_otp: otp });
+                        res.status(200).send({ message: "OTP sent to your email." });
                     } catch (error) {
                         console.log("Email error:", error);
-                        return res.status(500).send({ message: "Error sending verification email. Check your email or use DEV OTP." });
+                        return res.status(500).send({ message: "Error sending verification email. Check your email." });
                     }
                 });
             });

@@ -174,7 +174,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 alert(data.message); // "OTP sent to your email."
                 if (data.dev_otp) {
                     console.log("DEV OTP:", data.dev_otp);
-                    alert("Development OTP: " + data.dev_otp);
                 }
                 window.location.href = `/otp?email=${email}`;
             } else {
