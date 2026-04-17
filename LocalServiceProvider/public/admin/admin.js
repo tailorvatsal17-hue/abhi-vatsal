@@ -106,6 +106,10 @@ document.addEventListener('DOMContentLoaded', () => {
         fetch('/api/admin/analytics', { headers })
             .then(res => res.json())
             .then(data => {
+                if (!data || !data.overall) {
+                    console.error("Invalid analytics data:", data);
+                    return;
+                }
                 const elements = {
                     'total-users': parseInt(data.overall.total_users || 0),
                     'total-partners': data.overall.total_partners || 0,
@@ -279,7 +283,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const renderPartners = (partners) => {
             if (!container) return;
-            let table = '<table><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Service ID</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+            
+            if (!Array.isArray(partners)) {
+                container.innerHTML = `<p class="text-center text-danger">Error: ${partners.message || 'Invalid data received from server'}</p>`;
+                return;
+            }
+
+            if (partners.length === 0) {
+                container.innerHTML = '<p class="text-center">No professionals found.</p>';
+                return;
+            }
+
+            let table = '<table class="admin-table"><thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Service ID</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
             partners.forEach(p => {
                 let statusText = p.is_approved ? 'Approved' : 'Pending';
                 if (p.is_suspended) statusText = 'Suspended';
@@ -351,7 +366,21 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         const fetchPartners = () => {
-            fetch('/api/admin/partners', { headers }).then(res => res.json()).then(data => { allPartners = data; renderPartners(statusFilter.value === 'all' ? allPartners : allPartners.filter(p => statusFilter.value === 'approved' ? p.is_approved : !p.is_approved)); });
+            fetch('/api/admin/partners', { headers })
+                .then(res => res.json())
+                .then(data => { 
+                    allPartners = data; 
+                    if (!Array.isArray(allPartners)) {
+                        renderPartners(allPartners);
+                        return;
+                    }
+                    const val = statusFilter ? statusFilter.value : 'all';
+                    renderPartners(val === 'all' ? allPartners : allPartners.filter(p => val === 'approved' ? p.is_approved : !p.is_approved)); 
+                })
+                .catch(err => {
+                    console.error("Fetch partners error:", err);
+                    if (container) container.innerHTML = '<p class="text-center text-danger">Connection Error. Please check the server.</p>';
+                });
         };
 
         if (statusFilter) {

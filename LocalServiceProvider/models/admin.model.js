@@ -320,26 +320,36 @@ Admin.setPartnerSuspension = (id, is_suspended, result) => {
 };
 
 Admin.getOverallStats = (result) => {
-    const statsQuery = `
-        SELECT 
-            (SELECT COUNT(*) FROM users) as total_users,
-            (SELECT COUNT(*) FROM users WHERE is_suspended = false) as active_users,
-            (SELECT COUNT(*) FROM users WHERE is_suspended = true) as suspended_users,
-            (SELECT COUNT(*) FROM partners) as total_partners,
-            (SELECT COUNT(*) FROM partners WHERE is_approved = false) as pending_partners,
-            (SELECT COUNT(*) FROM services) as total_services,
-            (SELECT COUNT(*) FROM bookings) as total_bookings,
-            (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'Completed') as total_revenue,
-            (SELECT COUNT(*) FROM payments WHERE status = 'Completed') as successful_payments,
-            (SELECT COUNT(*) FROM payments WHERE status = 'Failed') as failed_payments
-    `;
-    sql.query(statsQuery, (err, res) => {
-        if (err) {
-            console.log("error: ", err);
-            result(err, null);
-            return;
-        }
-        result(null, res[0]);
+    // Check schema for users and partners first
+    sql.query("SHOW COLUMNS FROM users", (err, userCols) => {
+        const hasSuspended = userCols ? userCols.some(c => c.Field === 'is_suspended') : false;
+        
+        sql.query("SHOW COLUMNS FROM partners", (err, partnerCols) => {
+            const hasApproved = partnerCols ? partnerCols.some(c => c.Field === 'is_approved') : false;
+
+            const statsQuery = `
+                SELECT 
+                    (SELECT COUNT(*) FROM users) as total_users,
+                    (SELECT COUNT(*) FROM users WHERE ${hasSuspended ? 'is_suspended = false' : '1=1'}) as active_users,
+                    (SELECT COUNT(*) FROM users WHERE ${hasSuspended ? 'is_suspended = true' : '0=1'}) as suspended_users,
+                    (SELECT COUNT(*) FROM partners) as total_partners,
+                    (SELECT COUNT(*) FROM partners WHERE ${hasApproved ? 'is_approved = false' : '0=1'}) as pending_partners,
+                    (SELECT COUNT(*) FROM services) as total_services,
+                    (SELECT COUNT(*) FROM bookings) as total_bookings,
+                    (SELECT COALESCE(SUM(amount), 0) FROM payments WHERE status = 'Completed') as total_revenue,
+                    (SELECT COUNT(*) FROM payments WHERE status = 'Completed') as successful_payments,
+                    (SELECT COUNT(*) FROM payments WHERE status = 'Failed') as failed_payments
+            `;
+            
+            sql.query(statsQuery, (err, res) => {
+                if (err) {
+                    console.error("Overall Stats Error:", err);
+                    result(err, null);
+                    return;
+                }
+                result(null, res[0]);
+            });
+        });
     });
 };
 
