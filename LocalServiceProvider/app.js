@@ -18,6 +18,12 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static("./public"));
 app.use("/documents", express.static("./uploads/documents"));
 
+// Middleware to pass current URL to templates
+app.use((req, res, next) => {
+    res.locals.url = req.url;
+    next();
+});
+
 // Get the functions in the db.js file to use
 const db = require('./services/db');
 

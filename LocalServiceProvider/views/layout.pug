@@ -20,41 +20,48 @@ html(lang="en")
                         i.fas.fa-bars
 
                     div.nav-center#nav-menu
-                        ul.nav-links
-                            li: a(href="/", class=(title === 'Home' ? 'active' : '')) 
-                                i.fas.fa-home
-                                span Home
-                            li: a(href="/services", class=(title === 'All Services' ? 'active' : '')) 
-                                i.fas.fa-briefcase
-                                span Professionals
-                            li#nav-bookings-link(style="display:none;"): a(href="/profile#bookings") 
-                                i.fas.fa-calendar-check
-                                span My Bookings
+                        if !url || !url.startsWith('/partner')
+                            ul.nav-links
+                                li: a(href="/", class=(title === 'Home' ? 'active' : '')) 
+                                    i.fas.fa-home
+                                    span Home
+                                li: a(href="/services", class=(title === 'All Services' ? 'active' : '')) 
+                                    i.fas.fa-briefcase
+                                    span Professionals
+                                li#nav-bookings-link(style="display:none;"): a(href="/profile#bookings") 
+                                    i.fas.fa-calendar-check
+                                    span My Bookings
 
                     div.nav-right#nav-auth
-                        //- Guest Group
-                        div#guest-links.auth-group
-                            a.login-link(href="/login") Login
-                            a.register-btn(href="/signup") Register
-                        
-                        //- User Group (Dropdown)
-                        div#user-dropdown.nav-dropdown(style="display:none;")
-                            button.dropdown-trigger#dropdown-trigger
-                                div.avatar
-                                    i.fas.fa-user-circle
-                                span.username#nav-username User
-                                i.fas.fa-chevron-down.chevron
-                            div.dropdown-menu#dropdown-menu
-                                a(href="/profile")
-                                    i.fas.fa-user
-                                    span View Profile
-                                a(href="/profile#bookings")
-                                    i.fas.fa-list-ul
-                                    span My Bookings
-                                div.dropdown-divider
-                                a#logout-btn(href="#")
-                                    i.fas.fa-sign-out-alt
-                                    span Logout
+                        if !url || !url.startsWith('/partner')
+                            //- Guest Group
+                            div#guest-links.auth-group
+                                a.login-link(href="/login") Login
+                                a.register-btn(href="/signup") Register
+                            
+                            //- User Group (Dropdown)
+                            div#user-dropdown.nav-dropdown(style="display:none;")
+                                button.dropdown-trigger#dropdown-trigger
+                                    div.avatar
+                                        i.fas.fa-user-circle
+                                    span.username#nav-username User
+                                    i.fas.fa-chevron-down.chevron
+                                div.dropdown-menu#dropdown-menu
+                                    a(href="/profile")
+                                        i.fas.fa-user
+                                        span View Profile
+                                    a(href="/profile#bookings")
+                                        i.fas.fa-list-ul
+                                        span My Bookings
+                                    div.dropdown-divider
+                                    a#logout-btn(href="#")
+                                        i.fas.fa-sign-out-alt
+                                        span Logout
+                        else
+                            //- Partner Specific Links during Auth
+                            div.auth-group
+                                a.login-link(href="/partner/login") Partner Login
+                                a.register-btn(href="/partner/signup") Partner Signup
 
         main
             block content

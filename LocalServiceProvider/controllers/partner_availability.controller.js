@@ -64,10 +64,9 @@ exports.findAllByPartner = (req, res) => {
     PartnerAvailability.findByPartnerId(partner_id, (err, data) => {
         if (err) {
             if (err.kind === "not_found") {
-                res.status(404).send({
-                    message: `No availability found for partner with id ${partner_id}.`
-                });
+                res.send([]); 
             } else {
+                console.error("SQL Error in findAllByPartner:", err);
                 res.status(500).send({
                     message: "Error retrieving availability for partner with id " + partner_id
                 });
@@ -81,9 +80,7 @@ exports.getAvailabilityByPartnerId = (req, res) => {
     PartnerAvailability.findByPartnerId(req.params.partnerId, (err, data) => {
         if (err) {
             if (err.kind === "not_found") {
-                res.status(404).send({
-                    message: `No availability found for partner with id ${req.params.partnerId}.`
-                });
+                res.send([]); // Return empty array instead of 404
             } else {
                 res.status(500).send({
                     message: "Error retrieving availability for partner with id " + req.params.partnerId

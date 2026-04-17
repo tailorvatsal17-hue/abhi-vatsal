@@ -369,33 +369,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const fetchPartnerAvailability = async () => {
             try {
+                if (!availabilityTableContainer) return;
+                
                 const response = await fetch('/api/partners/availability', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                
                 if (response.ok) {
                     const availabilityData = await response.json();
+                    console.log("Fetched availability:", availabilityData);
                     renderAvailabilityTable(availabilityData);
-                } else if (response.status === 404) {
-                    renderAvailabilityTable([]); // No availability found
-                }
-                else {
-                    console.error('Failed to fetch partner availability:', response.statusText);
+                } else {
+                    console.error('Failed to fetch partner availability:', response.status);
+                    availabilityTableContainer.innerHTML = '<p class="text-center text-danger">Failed to load availability.</p>';
                 }
             } catch (error) {
                 console.error('Error fetching partner availability:', error);
+                if (availabilityTableContainer) availabilityTableContainer.innerHTML = '<p class="text-center text-danger">Connection error.</p>';
             }
         };
 
         const renderAvailabilityTable = (availabilityData) => {
-            if (availabilityData.length === 0) {
-                availabilityTableContainer.innerHTML = '<p class="text-center" style="padding: 2rem;">No availability slots added yet.</p>';
+            if (!availabilityTableContainer) return;
+            
+            if (!availabilityData || availabilityData.length === 0) {
+                availabilityTableContainer.innerHTML = '<div style="padding: 2rem; text-align: center; color: #666;"><p>No availability slots added yet.</p></div>';
                 return;
             }
 
             let table = '<table><thead><tr><th>Date</th><th>Start Time</th><th>End Time</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
             availabilityData.forEach(slot => {
+                // Pre-process date to avoid UTC/local mismatch
+                const dateOnly = slot.available_date.split('T')[0];
+                const [y, m, d] = dateOnly.split('-');
+                const localDateStr = new Date(y, m - 1, d).toLocaleDateString();
+                
                 table += `<tr>
-                    <td>${new Date(slot.available_date).toLocaleDateString()}</td>
+                    <td>${localDateStr}</td>
                     <td>${slot.start_time.substring(0, 5)}</td>
                     <td>${slot.end_time.substring(0, 5)}</td>
                     <td><span class="status-badge status-accepted">${slot.status}</span></td>
@@ -438,14 +448,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.ok) {
                     alert('Availability added successfully!');
                     addAvailabilityForm.reset();
-                    fetchPartnerAvailability(); // Refresh the table
+                    
+                    // Reset defaults (08:00 - 17:00, Skip Sunday)
+                    const now = new Date();
+                    let dayOffset = 0;
+                    if (now.getDay() === 0) dayOffset = 1;
+                    const defaultDate = new Date(now);
+                    defaultDate.setDate(now.getDate() + dayOffset);
+
+                    if (startTimeInput) startTimeInput.value = "08:00";
+                    if (endTimeInput) endTimeInput.value = "17:00";
+                    if (availableDateInput) availableDateInput.value = defaultDate.toISOString().split('T')[0];
+
+                    await fetchPartnerAvailability(); // Refresh list immediately
                 } else {
                     const errorData = await response.json();
                     alert('Failed to add availability: ' + (errorData.message || response.statusText));
                 }
             } catch (error) {
                 console.error('Error adding availability:', error);
-                alert('Error adding availability.');
+                alert('Error connecting to the server.');
             }
         };
 
@@ -469,7 +491,21 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         };
 
-        if (addAvailabilityForm) addAvailabilityForm.addEventListener('submit', addAvailability);
+        if (addAvailabilityForm) {
+            addAvailabilityForm.addEventListener('submit', addAvailability);
+            
+            // Set initial defaults
+            const now = new Date();
+            let dayOffset = 0;
+            if (now.getDay() === 0) dayOffset = 1; // If Sunday, default to Monday
+            
+            const defaultDate = new Date(now);
+            defaultDate.setDate(now.getDate() + dayOffset);
+            
+            if (availableDateInput) availableDateInput.value = defaultDate.toISOString().split('T')[0];
+            if (startTimeInput) startTimeInput.value = "08:00";
+            if (endTimeInput) endTimeInput.value = "17:00";
+        }
         fetchPartnerAvailability(); // Load availability when dashboard loads
     }
 

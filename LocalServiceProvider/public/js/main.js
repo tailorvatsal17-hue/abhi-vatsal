@@ -35,6 +35,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Function to update UI based on authentication status
     const updateAuthUI = () => {
+        // Skip for partner and admin pages to avoid UI conflicts
+        if (window.location.pathname.startsWith('/partner') || window.location.pathname.startsWith('/admin')) {
+            return;
+        }
+
         const isLoggedIn = localStorage.getItem('token') !== null;
         const guestLinks = document.getElementById('guest-links');
         const userDropdown = document.getElementById('user-dropdown');
