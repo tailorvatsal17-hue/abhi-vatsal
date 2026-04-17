@@ -2,16 +2,19 @@ extends layout
 
 block content
     section.partners-search-section
+        //- Title moves OUTSIDE container for center alignment if needed, or kept inside for padding
         div.container
-            //- Search Header
-            div.top-search-header
-                h2.section-title Find Local Professionals
-                div.search-bar-container
-                    form.search-form(id="partners-search-form")
-                        i.fas.fa-search
-                        input(type="text", placeholder="What service are you looking for? (e.g. Plumbing, Cleaning)", id="search-input")
-                        button(type="submit") Search
+            h2.section-title Find Local Professionals
 
+        //- Search Header moves OUTSIDE the container to allow 92% width
+        div.top-search-header(style="width: 92%; margin: 0 auto 3rem auto;")
+            div.search-bar-container(style="width: 100%;")
+                form.search-form(id="partners-search-form")
+                    i.fas.fa-search
+                    input(type="text", placeholder="What service are you looking for? (e.g. Plumbing, Cleaning)", id="search-input")
+                    button(type="submit") Search
+
+        div.container
             div.partners-page-layout
                 //- LEFT: Filter Sidebar
                 aside.filter-sidebar
@@ -60,8 +63,8 @@ block content
                                             div.card-actions
                                                 a.button(href=`/booking?partner_id=${partner.id}&service_id=${partner.service_id}`) Book
                                                 a.button-secondary(href=`/partners/${partner.id}`) See Professional
-
+                        else
                             div.no-results
                                 div.icon 🕵️‍♂️
                                 h3 No professionals found
-                                p Try adjusting your filters or search terms to find what you're looking for.
+                                p Try adjusting your filters or search terms.

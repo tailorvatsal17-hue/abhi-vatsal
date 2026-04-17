@@ -401,12 +401,12 @@ header {
     box-shadow: var(--shadow);
     border-radius: 5px;
     overflow: hidden;
-    max-width: 600px;
+    max-width: 100%; /* Allow expansion */
     margin: 0 auto;
 }
 
 .search-form input {
-    width: 100%;
+    width: 92%;
     padding: 1rem;
     border: none;
     outline: none;
