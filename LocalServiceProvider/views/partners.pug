@@ -43,9 +43,23 @@ block content
                         if partners && partners.length > 0
                             each partner in partners
                                 div.partner-card-new
+                                    - 
+                                        var proMap = {
+                                            'plumb': 'https://images.unsplash.com/photo-1607472586893-edb57cbceb42?w=500&h=500&fit=crop',
+                                            'electric': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&h=500&fit=crop',
+                                            'clean': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&h=500&fit=crop',
+                                            'paint': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=500&h=500&fit=crop',
+                                            'pest': 'https://images.unsplash.com/photo-1599598425947-3300262b704c?w=500&h=500&fit=crop',
+                                            'hvac': 'https://images.unsplash.com/photo-1621905252507-b35492d90fa6?w=500&h=500&fit=crop',
+                                            'carpentr': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=500&h=500&fit=crop',
+                                            'appliance': 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?w=500&h=500&fit=crop'
+                                        };
+                                        var catKey = (partner.category_name || '').toLowerCase();
+                                        var matched = Object.keys(proMap).find(k => catKey.includes(k));
+                                        var defaultProImg = 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?q=80&w=500&auto=format&fit=crop';
+                                        var profileImg = (partner.profile_image && partner.profile_image.includes('http')) ? partner.profile_image : (matched ? proMap[matched] : defaultProImg);
                                     div.card-image-wrapper
-                                        - var profileImg = partner.profile_image || 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?q=80&w=500&auto=format&fit=crop'
-                                        img(src=profileImg, alt=partner.name)
+                                        img(src=profileImg, alt=partner.name, style="width: 100%; height: 200px; object-fit: cover;")
                                         div.rating-badge
                                             i.fas.fa-star
                                             | #{partner.rating ? parseFloat(partner.rating).toFixed(1) : 'New'}

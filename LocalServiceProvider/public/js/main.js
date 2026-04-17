@@ -309,12 +309,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const partnerDiv = document.createElement('div');
                         partnerDiv.classList.add('partner-card-new');
                         
-                        const profileImg = partner.profile_image || 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?q=80&w=500&auto=format&fit=crop';
+                        // Robust Image Mapping
+                        const imgMap = {
+                            'plumb': 'https://images.unsplash.com/photo-1607472586893-edb57cbceb42?w=500&h=500&fit=crop',
+                            'electric': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&h=500&fit=crop',
+                            'clean': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&h=500&fit=crop',
+                            'paint': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=500&h=500&fit=crop',
+                            'pest': 'https://images.unsplash.com/photo-1599598425947-3300262b704c?w=500&h=500&fit=crop',
+                            'hvac': 'https://images.unsplash.com/photo-1621905252507-b35492d90fa6?w=500&h=500&fit=crop',
+                            'carpentr': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=500&h=500&fit=crop',
+                            'appliance': 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?w=500&h=500&fit=crop'
+                        };
+                        const catKey = (partner.category_name || '').toLowerCase();
+                        const matchedKey = Object.keys(imgMap).find(k => catKey.includes(k));
+                        const defaultProImg = 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?w=500&h=500&fit=crop';
+                        
+                        const profileImg = (partner.profile_image && partner.profile_image.includes('http')) 
+                            ? partner.profile_image 
+                            : (matchedKey ? imgMap[matchedKey] : defaultProImg);
+                            
                         const rating = partner.rating ? parseFloat(partner.rating).toFixed(1) : 'New';
                         
                         partnerDiv.innerHTML = `
                             <div class="card-image-wrapper">
-                                <img src="${profileImg}" alt="${partner.partner_name || partner.name}">
+                                <img src="${profileImg}" alt="${partner.partner_name || partner.name}" style="width: 100%; height: 200px; object-fit: cover;">
                                 <div class="rating-badge">
                                     <i class="fas fa-star"></i>
                                     ${rating}

@@ -36,21 +36,21 @@ block content
                         div.service-card
                             - 
                                 var serviceMap = {
-                                    'plumb': 'https://images.unsplash.com/photo-1607472586893-edb57cbceb42?w=500&h=500&fit=crop',
-                                    'electric': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&h=500&fit=crop',
-                                    'clean': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&h=500&fit=crop',
-                                    'paint': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=500&h=500&fit=crop',
-                                    'pest': 'https://images.unsplash.com/photo-1599598425947-3300262b704c?w=500&h=500&fit=crop',
-                                    'hvac': 'https://images.unsplash.com/photo-1621905252507-b35492d90fa6?w=500&h=500&fit=crop',
-                                    'carpentr': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=500&h=500&fit=crop',
-                                    'appliance': 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?w=500&h=500&fit=crop'
+                                    'plumb': 'https://images.unsplash.com/photo-1607472586893-edb57cbceb42?w=200&h=200&fit=crop',
+                                    'electric': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=200&h=200&fit=crop',
+                                    'clean': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=200&h=200&fit=crop',
+                                    'paint': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=200&h=200&fit=crop',
+                                    'pest': 'https://images.unsplash.com/photo-1599598425947-3300262b704c?w=200&h=200&fit=crop',
+                                    'hvac': 'https://images.unsplash.com/photo-1621905252507-b35492d90fa6?w=200&h=200&fit=crop',
+                                    'carpentr': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=200&h=200&fit=crop',
+                                    'appliance': 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?w=200&h=200&fit=crop'
                                 };
                                 var searchKey = (service.category_name + ' ' + service.name).toLowerCase();
                                 var matched = Object.keys(serviceMap).find(k => searchKey.includes(k));
-                                var defaultSvcImg = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&h=500&fit=crop';
-                                var icon = service.image || (matched ? serviceMap[matched] : defaultSvcImg);
+                                var defaultSvcImg = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=200&h=200&fit=crop';
+                                var icon = (matched ? serviceMap[matched] : (service.image && service.image.includes('http') ? service.image : defaultSvcImg));
                             div.service-icon-wrapper
-                                img(src=icon, alt=service.name, style="object-fit: cover; border-radius: 50%;")
+                                img(src=icon, alt=service.name, style="width: 70px; height: 70px; object-fit: cover; border-radius: 50%;")
                             div.category-badge= service.category_name
                             h3= service.name
                             p= service.description
