@@ -6,7 +6,14 @@ module.exports = app => {
     const partnerServices = require('../controllers/partner_service.controller.js');
     const { verifyToken } = require('../middleware/authJwt');
 
-    // Public routes (no token required)
+    // Partner Availability Management (Prioritized)
+    router.get('/availability', verifyToken, partnerAvailability.findAllByPartner);
+    router.post('/availability', verifyToken, partnerAvailability.create);
+    router.get('/availability/:id', verifyToken, partnerAvailability.findOne);
+    router.put('/availability/:id', verifyToken, partnerAvailability.update);
+    router.delete('/availability/:id', verifyToken, partnerAvailability.delete);
+
+    // Public routes
     router.get('/', partners.search);
     router.post('/signup', partners.signup);
     router.post('/verify-otp', partners.verifyOtp);
@@ -14,7 +21,7 @@ module.exports = app => {
     router.get('/:partnerId/availability', partnerAvailability.getAvailabilityByPartnerId);
 
     // Protected routes (token required)
-    router.use(verifyToken); // All routes below this line will require a token
+    router.use(verifyToken); 
 
     // Get partner profile
     router.get('/:id', partners.getProfile);
@@ -29,13 +36,6 @@ module.exports = app => {
     router.put('/bookings/:id/accept', partners.updateBookingStatus);
     router.put('/bookings/:id/reject', partners.updateBookingStatus);
     router.put('/bookings/:id/status', partners.updateBookingStatus);
-
-    // Partner Availability Routes
-    router.post('/availability', partnerAvailability.create); // Create availability
-    router.get('/availability', partnerAvailability.findAllByPartner); // Get all availability for partner
-    router.get('/availability/:id', partnerAvailability.findOne); // Get single availability
-    router.put('/availability/:id', partnerAvailability.update); // Update availability
-    router.delete('/availability/:id', partnerAvailability.delete); // Delete availability
 
     // Partner Document Routes
     router.post('/documents/upload', partnerDocuments.uploadDocument);

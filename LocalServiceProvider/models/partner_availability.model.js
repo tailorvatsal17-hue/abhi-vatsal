@@ -41,33 +41,21 @@ PartnerAvailability.create = (newAvailability, result) => {
 };
 
 PartnerAvailability.findByPartnerId = (partnerId, result) => {
-    const query = `
-        SELECT 
-            id, 
-            partner_id, 
-            DATE_FORMAT(available_date, '%Y-%m-%d') as available_date, 
-            start_time, 
-            end_time, 
-            status 
-        FROM partner_availability 
-        WHERE partner_id = ? 
-        ORDER BY available_date ASC, start_time ASC
-    `;
+    // Simple, proper SQL query for maximum compatibility
+    const query = "SELECT * FROM partner_availability WHERE partner_id = ? ORDER BY available_date ASC, start_time ASC";
 
     sql.query(query, [partnerId], (err, res) => {
         if (err) {
-            console.error("Database Query Error (findByPartnerId):", err);
+            console.error("Database Error in findByPartnerId:", err);
             result(err, null);
             return;
         }
         
         if (res && res.length > 0) {
             result(null, res);
-            return;
+        } else {
+            result({ kind: "not_found" }, null);
         }
-        
-        // Return not_found kind for empty results
-        result({ kind: "not_found" }, null);
     });
 };
 

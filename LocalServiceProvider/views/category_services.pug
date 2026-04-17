@@ -13,8 +13,22 @@ block content
                 if services && services.length > 0
                     each service in services
                         div.service-card(style="background: #fff; padding: 2rem; border-radius: 10px; box-shadow: var(--shadow); text-align: center;")
-                            - var icon = service.image || `https://img.icons8.com/fluency/80/000000/maintenance.png`
-                            img(src=icon, alt=service.name, style="width: 80px; margin-bottom: 1rem;")
+                            - 
+                                var serviceMap = {
+                                    'plumb': 'https://images.unsplash.com/photo-1607472586893-edb57cbceb42?w=500&h=500&fit=crop',
+                                    'electric': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&h=500&fit=crop',
+                                    'clean': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&h=500&fit=crop',
+                                    'paint': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=500&h=500&fit=crop',
+                                    'pest': 'https://images.unsplash.com/photo-1599598425947-3300262b704c?w=500&h=500&fit=crop',
+                                    'hvac': 'https://images.unsplash.com/photo-1621905252507-b35492d90fa6?w=500&h=500&fit=crop',
+                                    'carpentr': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=500&h=500&fit=crop',
+                                    'appliance': 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?w=500&h=500&fit=crop'
+                                };
+                                var searchKey = (service.name || '').toLowerCase();
+                                var matched = Object.keys(serviceMap).find(k => searchKey.includes(k));
+                                var defaultSvcImg = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&h=500&fit=crop';
+                                var icon = service.image || (matched ? serviceMap[matched] : defaultSvcImg);
+                            img(src=icon, alt=service.name, style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; margin-bottom: 1rem;")
                             h3= service.name
                             p(style="color: #666; margin-bottom: 1.5rem;")= service.description
                             p.price(style="font-weight: bold; font-size: 1.2rem; color: var(--primary-color); margin-bottom: 1.5rem;") From £#{service.base_price}
