@@ -21,107 +21,97 @@ Service.getAll = (result) => {
 };
 
 Service.search = (filters, result) => {
-    // Helper to clean price strings
-    const cleanPriceSql = (col) => `CAST(REPLACE(REPLACE(REPLACE(COALESCE(${col}, '0'), '£', ''), ',', ''), ' ', '') AS DECIMAL(10,2))`;
-
-    // 1. Check schema diagnostics
-    sql.query("SHOW COLUMNS FROM partners", (err, cols) => {
+    // 1. Check if 'rating' column exists in partners table to avoid SQL errors
+    sql.query("SHOW COLUMNS FROM partners", (err, pCols) => {
         if (err) {
-            console.error("Schema diagnostic failed:", err);
+            console.error("Search Initialization Error:", err);
             result(err, null);
             return;
         }
 
-        const columnNames = cols.map(c => c.Field);
-        const hasRating = columnNames.includes('rating');
-        const hasApproved = columnNames.includes('is_approved');
-        const hasStatus = columnNames.includes('status');
+        const hasRating = pCols.some(c => c.Field === 'rating');
+        const ratingField = hasRating ? "p.rating" : "0";
 
-        // 2. Check if partner_services table exists
-        sql.query("SHOW TABLES LIKE 'partner_services'", (err, tableExists) => {
-            const hasExtraTable = tableExists && tableExists.length > 0;
-
-            let approvalFilter = "1=1";
-            if (hasApproved) approvalFilter = "p.is_approved = 1";
-            else if (hasStatus) approvalFilter = "p.status = 'approved'";
-
-            const ratingSelect = hasRating ? "p.rating" : "0 AS rating";
-
-            let baseQuery = `
+        // 2. Check if 'partner_services' table exists
+        sql.query("SHOW TABLES LIKE 'partner_services'", (err, tables) => {
+            const hasExtraTable = !err && tables && tables.length > 0;
+            
+            // Base query for primary services
+            const baseQuery = `
                 SELECT 
                     s.name AS service_name, 
                     p.name AS partner_name, 
                     p.description, 
                     p.pricing, 
-                    p.work_images, 
                     p.id, 
                     p.profile_image, 
                     p.service_id, 
-                    s.category_id,
+                    s.category_id, 
                     sc.name AS category_name, 
-                    ${ratingSelect},
-                    ${cleanPriceSql('p.pricing')} as clean_price
+                    ${ratingField} AS rating
                 FROM services s
                 INNER JOIN partners p ON s.id = p.service_id
                 LEFT JOIN service_categories sc ON s.category_id = sc.id
-                WHERE ${approvalFilter}
+                WHERE p.is_approved = 1
             `;
             
-            let secondaryQuery = "";
+            let fullQuery = "";
             if (hasExtraTable) {
-                secondaryQuery = `
-                    UNION ALL
+                // UNION with additional services if the table exists
+                const secondaryQuery = `
                     SELECT 
                         s.name AS service_name, 
                         p.name AS partner_name, 
                         ps.description, 
                         CAST(ps.price AS CHAR) as pricing, 
-                        p.work_images, 
                         p.id, 
                         p.profile_image, 
                         ps.service_id, 
-                        s.category_id,
+                        s.category_id, 
                         sc.name AS category_name, 
-                        ${ratingSelect},
-                        ${cleanPriceSql('ps.price')} as clean_price
+                        ${ratingField} AS rating
                     FROM partner_services ps
                     JOIN partners p ON ps.partner_id = p.id
                     JOIN services s ON ps.service_id = s.id
                     LEFT JOIN service_categories sc ON s.category_id = sc.id
-                    WHERE ${approvalFilter}
+                    WHERE p.is_approved = 1
                 `;
+                fullQuery = `SELECT * FROM (${baseQuery} UNION ALL ${secondaryQuery}) as combined WHERE 1=1`;
+            } else {
+                fullQuery = `SELECT * FROM (${baseQuery}) as combined WHERE 1=1`;
             }
 
-            let query = `SELECT * FROM (${baseQuery} ${secondaryQuery}) as combined WHERE 1=1`;
             let params = [];
 
+            // Filter by Keyword (Service name or Professional name)
             if (filters.keyword) {
-                query += " AND (LOWER(service_name) LIKE LOWER(?) OR LOWER(partner_name) LIKE LOWER(?) OR LOWER(category_name) LIKE LOWER(?) OR LOWER(description) LIKE LOWER(?) OR service_name SOUNDS LIKE ? OR category_name SOUNDS LIKE ?)";
+                fullQuery += " AND (LOWER(service_name) LIKE LOWER(?) OR LOWER(partner_name) LIKE LOWER(?) OR LOWER(category_name) LIKE LOWER(?) OR service_name SOUNDS LIKE ?)";
                 const searchTerm = `%${filters.keyword}%`;
-                const soundsLikeTerm = filters.keyword;
-                params.push(searchTerm, searchTerm, searchTerm, searchTerm, soundsLikeTerm, soundsLikeTerm);
+                params.push(searchTerm, searchTerm, searchTerm, filters.keyword);
             }
 
+            // Filter by Category
             if (filters.category_id) {
                 if (!isNaN(filters.category_id) && filters.category_id !== "") {
-                    query += " AND category_id = ?";
+                    fullQuery += " AND category_id = ?";
                     params.push(filters.category_id);
                 } else if (filters.category_id !== "") {
-                    query += " AND LOWER(category_name) = LOWER(?)";
+                    fullQuery += " AND LOWER(category_name) = LOWER(?)";
                     params.push(filters.category_id);
                 }
             }
 
+            // Filter by specific Service
             if (filters.service_id) {
-                query += " AND service_id = ?";
+                fullQuery += " AND service_id = ?";
                 params.push(filters.service_id);
             }
 
-            query += " ORDER BY rating DESC";
+            fullQuery += " ORDER BY rating DESC";
 
-            sql.query(query, params, (err, res) => {
+            sql.query(fullQuery, params, (err, res) => {
                 if (err) {
-                    console.error("Final Search Query Error:", err);
+                    console.error("Database Search Error:", err);
                     result(err, null);
                     return;
                 }
