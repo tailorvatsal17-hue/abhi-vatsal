@@ -327,7 +327,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                                     </div>
                                     <div class="card-actions">
                                         <a href="/booking?partner_id=${partner.id}&service_id=${partner.service_id}" class="button">Book</a>
-                                        <a href="/partners/${partner.id}" class="button-secondary">See Professional</a>
                                     </div>
                                 </div>
                             </div>
