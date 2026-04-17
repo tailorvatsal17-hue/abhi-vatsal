@@ -332,18 +332,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     const p = await res.json();
                     if (p) {
+                        const statusText = p.is_approved ? 'Approved' : 'Pending';
+                        const statusClass = statusText.toLowerCase();
+
                         const mapping = { 
                             'modal-partner-id': p.id, 
                             'modal-partner-name': p.name, 
                             'modal-partner-email': p.email, 
                             'modal-partner-service': p.service_name || p.service_id, 
-                            'modal-partner-rating': p.rating || 'No rating yet', 
-                            'modal-partner-status': p.is_approved ? 'Approved' : 'Pending' 
+                            'modal-partner-rating': p.rating ? parseFloat(p.rating).toFixed(2) : '0.00'
                         };
+                        
                         for (const [id, val] of Object.entries(mapping)) {
                             const el = document.getElementById(id);
                             if (el) el.tagName === 'INPUT' ? el.value = val : el.textContent = val;
                         }
+
+                        const statusEl = document.getElementById('modal-partner-status');
+                        if (statusEl) {
+                            statusEl.innerHTML = `<span class="status-badge status-${statusClass}">${statusText}</span>`;
+                        }
+
                         const desc = document.getElementById('modal-partner-description-edit');
                         if (desc) desc.value = p.description || '';
                         const pricing = document.getElementById('modal-partner-pricing-edit');

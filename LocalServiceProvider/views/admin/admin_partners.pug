@@ -16,28 +16,28 @@ block content
             span.close-modal &times;
             h2#modal-partner-name Partner Details
             div#modal-partner-content
-                div(style="display: flex; gap: 2rem; margin-bottom: 2rem;")
-                    img#modal-partner-image.partner-profile-img(src="", alt="Partner Profile", style="display:none;")
+                div(style="display: flex; gap: 2rem; margin-bottom: 2rem; background: #f8f9fa; padding: 1.5rem; border-radius: 12px; border: 1px solid #eee;")
+                    img#modal-partner-image.partner-profile-img(src="", alt="Partner Profile", style="display:none; width: 120px; height: 120px; border-radius: 10px; object-fit: cover;")
                     div(style="flex: 1;")
-                        div.partner-details-grid
-                            div Email:
-                            div#modal-partner-email
-                            div Service ID:
-                            div#modal-partner-service
-                            div Rating:
-                            div#modal-partner-rating
-                            div Status:
+                        div.partner-details-grid(style="display: grid; grid-template-columns: 120px 1fr; gap: 0.75rem; align-items: baseline;")
+                            div(style="font-weight: 600; color: #6c757d;") Email:
+                            div#modal-partner-email(style="font-weight: 500;")
+                            div(style="font-weight: 600; color: #6c757d;") Service:
+                            div#modal-partner-service(style="font-weight: 500;")
+                            div(style="font-weight: 600; color: #6c757d;") Rating:
+                            div#modal-partner-rating(style="font-weight: 700; color: #f59e0b;")
+                            div(style="font-weight: 600; color: #6c757d;") Status:
                             div#modal-partner-status
                 
                 form#edit-partner-form
                     input(type="hidden", id="modal-partner-id")
-                    div.form-group
-                        label(for="modal-partner-description-edit") Description:
-                        textarea#modal-partner-description-edit(style="width: 100%; height: 100px; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);")
+                    div.form-group(style="margin-bottom: 1.5rem;")
+                        label(for="modal-partner-description-edit", style="display: block; margin-bottom: 0.5rem; font-weight: 600;") Professional Bio:
+                        textarea#modal-partner-description-edit(style="width: 100%; height: 100px; padding: 0.8rem; border-radius: 8px; border: 1px solid #ddd; font-family: inherit;")
                     
-                    div.form-group
-                        label(for="modal-partner-pricing-edit") Pricing (£/hr):
-                        input(type="text", id="modal-partner-pricing-edit", style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid var(--border-color);")
+                    div.form-group(style="margin-bottom: 1.5rem;")
+                        label(for="modal-partner-pricing-edit", style="display: block; margin-bottom: 0.5rem; font-weight: 600;") Base Pricing (£):
+                        input(type="text", id="modal-partner-pricing-edit", style="width: 100%; padding: 0.8rem; border-radius: 8px; border: 1px solid #ddd;")
                     
                     div#modal-partner-docs(style="margin-top: 2rem; border-top: 1px solid #eee; padding-top: 1rem;")
                         h3 <i class="fas fa-file-alt"></i> Verification Documents
