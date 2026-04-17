@@ -61,17 +61,24 @@ exports.create = (req, res) => {
 exports.findAllByPartner = (req, res) => {
     const partner_id = req.userId; 
 
+    if (!partner_id) {
+        console.error("DEBUG: No partner_id in request. userId:", req.userId);
+        return res.status(401).send({ message: "Authentication failed. Please login again." });
+    }
+
     PartnerAvailability.findByPartnerId(partner_id, (err, data) => {
         if (err) {
+            console.error("DEBUG: findByPartnerId error:", err);
             if (err.kind === "not_found") {
                 res.send([]); 
             } else {
-                console.error("SQL Error in findAllByPartner:", err);
                 res.status(500).send({
-                    message: "Error retrieving availability for partner with id " + partner_id
+                    message: "Database error: " + (err.message || "Unknown error")
                 });
             }
-        } else res.send(data);
+        } else {
+            res.send(data);
+        }
     });
 };
 

@@ -52,9 +52,10 @@ Partner.findByEmail = (email, result) => {
 
 Partner.findById = (id, result) => {
     sql.query(`
-        SELECT p.*, s.name as service_name 
+        SELECT p.*, s.name as service_name, sc.name as category_name 
         FROM partners p 
         LEFT JOIN services s ON p.service_id = s.id 
+        LEFT JOIN service_categories sc ON s.category_id = sc.id
         WHERE p.id = ?`, [id], (err, res) => {
         if (err) {
             console.log("error: ", err);

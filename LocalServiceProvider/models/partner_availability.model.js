@@ -41,21 +41,42 @@ PartnerAvailability.create = (newAvailability, result) => {
 };
 
 PartnerAvailability.findByPartnerId = (partnerId, result) => {
-    // Simple, proper SQL query for maximum compatibility
-    const query = "SELECT * FROM partner_availability WHERE partner_id = ? ORDER BY available_date ASC, start_time ASC";
+    // 1. Pre-flight check: Ensure table exists before querying
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS partner_availability (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            partner_id INT NOT NULL,
+            available_date DATE NOT NULL,
+            start_time TIME NOT NULL,
+            end_time TIME NOT NULL,
+            status VARCHAR(50) DEFAULT 'Available',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    `;
 
-    sql.query(query, [partnerId], (err, res) => {
+    sql.query(createTableQuery, (err) => {
         if (err) {
-            console.error("Database Error in findByPartnerId:", err);
+            console.error("Error ensuring partner_availability table:", err);
             result(err, null);
             return;
         }
+
+        // 2. Run the actual fetch query with standard SQL
+        const query = "SELECT * FROM partner_availability WHERE partner_id = ? ORDER BY available_date ASC, start_time ASC";
         
-        if (res && res.length > 0) {
-            result(null, res);
-        } else {
-            result({ kind: "not_found" }, null);
-        }
+        sql.query(query, [partnerId], (err, res) => {
+            if (err) {
+                console.error("SQL FETCH ERROR:", err);
+                result(err, null);
+                return;
+            }
+            
+            if (res && res.length > 0) {
+                result(null, res);
+            } else {
+                result({ kind: "not_found" }, null);
+            }
+        });
     });
 };
 

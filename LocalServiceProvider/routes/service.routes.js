@@ -5,6 +5,9 @@ module.exports = app => {
     // Get all services
     router.get('/', services.getAll);
 
+    // Get all categories
+    router.get('/categories', services.getAllCategories);
+
     // Search for services
     router.get('/search', services.search);
 

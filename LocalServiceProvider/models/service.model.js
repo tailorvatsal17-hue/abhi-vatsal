@@ -3,14 +3,19 @@ const sql = require('./db.js');
 const Service = {};
 
 Service.getAll = (result) => {
-    sql.query("SELECT * FROM services", (err, res) => {
+    const query = `
+        SELECT s.*, sc.name as category_name 
+        FROM services s 
+        LEFT JOIN service_categories sc ON s.category_id = sc.id
+    `;
+    sql.query(query, (err, res) => {
         if (err) {
             console.log("error: ", err);
             result(null, err);
             return;
         }
 
-        console.log("services: ", res);
+        console.log("services with categories: ", res.length);
         result(null, res);
     });
 };

@@ -1,4 +1,5 @@
 const Service = require('../models/service.model.js');
+const ServiceCategory = require('../models/service_category.model.js');
 
 // Get all services
 exports.getAll = (req, res) => {
@@ -7,6 +8,17 @@ exports.getAll = (req, res) => {
             res.status(500).send({
                 message:
                     err.message || "Some error occurred while retrieving services."
+            });
+        else res.send(data);
+    });
+};
+
+// Get all categories
+exports.getAllCategories = (req, res) => {
+    ServiceCategory.getAll((err, data) => {
+        if (err)
+            res.status(500).send({
+                message: err.message || "Some error occurred while retrieving categories."
             });
         else res.send(data);
     });

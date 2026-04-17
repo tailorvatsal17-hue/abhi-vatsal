@@ -17,25 +17,36 @@ block content
                 if categories && categories.length > 0
                     - 
                         var imgMap = {
-                            'plumb': 'https://images.unsplash.com/photo-1607472586893-edb57cbceb42?w=200&h=200&fit=crop',
-                            'electric': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=200&h=200&fit=crop',
-                            'clean': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=200&h=200&fit=crop',
-                            'paint': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=200&h=200&fit=crop',
-                            'pest': 'https://images.unsplash.com/photo-1599598425947-3300262b704c?w=200&h=200&fit=crop',
-                            'hvac': 'https://images.unsplash.com/photo-1621905252507-b35492d90fa6?w=200&h=200&fit=crop',
-                            'carpentr': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=200&h=200&fit=crop',
-                            'appliance': 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?w=200&h=200&fit=crop'
+                            'plumb': 'https://images.unsplash.com/photo-1505798577917-a65157d3320a?w=400&h=400&fit=crop',
+                            'electric': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400&h=400&fit=crop',
+                            'clean': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=400&fit=crop',
+                            'paint': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400&h=400&fit=crop',
+                            'pest': 'https://images.unsplash.com/photo-1590682680695-43b964a3ae17?w=400&h=400&fit=crop',
+                            'hvac': 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop',
+                            'ac': 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop',
+                            'air': 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop',
+                            'carpentr': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=400&h=400&fit=crop',
+
+                            'appliance': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=400&fit=crop',
+                            'fridge': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=400&fit=crop',
+                            'garden': 'https://images.unsplash.com/photo-1592419044706-39796d40f98c?w=400&h=400&fit=crop',
+                            'beauty': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=400&fit=crop',
+                            'salon': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=400&fit=crop',
+                            'decor': 'https://images.unsplash.com/photo-1513584684031-43d1c2510103?w=400&h=400&fit=crop',
+                            'move': 'https://images.unsplash.com/photo-1600585152220-90363fe7e115?w=400&h=400&fit=crop',
+                            'car': 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=400&fit=crop',
+                            'repair': 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=400&fit=crop'
                         };
                     each cat in categories
                         div.category
-                            - var catKey = cat.name.toLowerCase()
+                            - var catName = cat.name || ''
+                            - var catKey = catName.toLowerCase()
                             - var matchedKey = Object.keys(imgMap).find(k => catKey.includes(k))
                             - var defaultImg = 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=200&h=200&fit=crop'
-                            - //- Force the high quality map if it matches, otherwise use DB or default
-                            - var icon = (matchedKey ? imgMap[matchedKey] : (cat.image && cat.image.includes('http') ? cat.image : defaultImg))
+                            - var icon = (matchedKey ? imgMap[matchedKey] : (cat.image && cat.image.startsWith('http') ? cat.image : defaultImg))
                             a(href=`/category/${cat.id}`, style="text-decoration: none; color: inherit;")
-                                img(src=icon, alt=cat.name, style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; display: block; margin: 0 auto 1rem auto;")
-                                h3= cat.name
+                                img(src=icon, alt=catName, style="width: 80px; height: 80px; object-fit: cover; border-radius: 50%; display: block; margin: 0 auto 1rem auto;")
+                                h3= catName
                                 p(style="font-size: 0.85rem; color: #666; margin-top: 0.5rem; line-height: 1.2;")= cat.description
                 else
                     p No categories available at the moment.

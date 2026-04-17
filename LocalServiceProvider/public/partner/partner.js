@@ -377,15 +377,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 if (response.ok) {
                     const availabilityData = await response.json();
-                    console.log("Fetched availability:", availabilityData);
                     renderAvailabilityTable(availabilityData);
+                } else if (response.status === 404) {
+                    renderAvailabilityTable([]); 
                 } else {
-                    console.error('Failed to fetch partner availability:', response.status);
-                    availabilityTableContainer.innerHTML = '<p class="text-center text-danger">Failed to load availability.</p>';
+                    const errData = await response.json().catch(() => ({}));
+                    const errMsg = errData.message || response.statusText;
+                    console.error('Fetch availability error:', response.status, errMsg);
+                    availabilityTableContainer.innerHTML = `<p class="text-center text-danger">Failed to load: ${errMsg}</p>`;
                 }
             } catch (error) {
-                console.error('Error fetching partner availability:', error);
-                if (availabilityTableContainer) availabilityTableContainer.innerHTML = '<p class="text-center text-danger">Connection error.</p>';
+                console.error('Network error fetching partner availability:', error);
+                if (availabilityTableContainer) availabilityTableContainer.innerHTML = '<p class="text-center text-danger">Network Error. Check your connection.</p>';
             }
         };
 
@@ -399,16 +402,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             let table = '<table><thead><tr><th>Date</th><th>Start Time</th><th>End Time</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
             availabilityData.forEach(slot => {
-                // Pre-process date to avoid UTC/local mismatch
-                const dateOnly = slot.available_date.split('T')[0];
-                const [y, m, d] = dateOnly.split('-');
-                const localDateStr = new Date(y, m - 1, d).toLocaleDateString();
+                let displayDate = 'Invalid Date';
+                if (slot.available_date) {
+                    try {
+                        const d = new Date(slot.available_date);
+                        // Standardize to local YYYY-MM-DD to avoid timezone issues
+                        const year = d.getFullYear();
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const day = String(d.getDate()).padStart(2, '0');
+                        displayDate = `${year}-${month}-${day}`;
+                    } catch (e) { displayDate = slot.available_date; }
+                }
                 
                 table += `<tr>
-                    <td>${localDateStr}</td>
-                    <td>${slot.start_time.substring(0, 5)}</td>
-                    <td>${slot.end_time.substring(0, 5)}</td>
-                    <td><span class="status-badge status-accepted">${slot.status}</span></td>
+                    <td>${displayDate}</td>
+                    <td>${(slot.start_time || '').substring(0, 5)}</td>
+                    <td>${(slot.end_time || '').substring(0, 5)}</td>
+                    <td><span class="status-badge status-accepted">${slot.status || 'Available'}</span></td>
                     <td>
                         <button class="button button-danger button-sm delete-availability-btn" data-id="${slot.id}"><i class="fas fa-trash"></i></button>
                     </td>
@@ -763,6 +773,73 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.location.pathname === '/partner/services') {
         const addServiceForm = document.getElementById('add-partner-service-form');
         const myServicesTable = document.getElementById('my-services-table');
+        const serviceSearchInput = document.getElementById('service-search-input');
+        const serviceDatalist = document.getElementById('relevant-services-list');
+        const categorySelect = document.getElementById('category-select');
+        let relevantServices = [];
+        let allServices = [];
+
+        const updateServiceDatalist = (categoryId) => {
+            // Filter services by the selected category ID
+            relevantServices = allServices.filter(s => s.category_id == categoryId);
+
+            if (serviceDatalist) {
+                serviceDatalist.innerHTML = '';
+                relevantServices.forEach(s => {
+                    const option = document.createElement('option');
+                    option.value = s.name;
+                    serviceDatalist.appendChild(option);
+                });
+            }
+        };
+
+        const initManageServices = async () => {
+            try {
+                // 1. Get partner details to find their current primary service
+                const partnerRes = await fetch(`/api/partners/${partnerId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const partner = await partnerRes.json();
+                
+                // 2. Get all categories from the correct database table
+                const categoriesRes = await fetch('/api/services/categories');
+                const allCategories = await categoriesRes.json();
+                
+                // 3. Get all services
+                const servicesRes = await fetch('/api/services');
+                allServices = await servicesRes.json();
+
+                // 4. Populate category dropdown
+                if (categorySelect) {
+                    categorySelect.innerHTML = '<option value="">Select a category...</option>';
+                    
+                    allCategories.forEach(cat => {
+                        const option = document.createElement('option');
+                        option.value = cat.id;
+                        option.textContent = cat.name;
+                        
+                        // Set the partner's current category as the default selection
+                        if (cat.name === partner.category_name || cat.id == partner.category_id) {
+                            option.selected = true;
+                        }
+                        categorySelect.appendChild(option);
+                    });
+
+                    // 5. Handle category change: update the service list
+                    categorySelect.addEventListener('change', (e) => {
+                        updateServiceDatalist(e.target.value);
+                        if (serviceSearchInput) serviceSearchInput.value = ''; 
+                    });
+
+                    // 6. Initial population of the service datalist based on the active category
+                    if (categorySelect.value) {
+                        updateServiceDatalist(categorySelect.value);
+                    }
+                }
+            } catch (err) {
+                console.error("Error initializing manage services:", err);
+            }
+        };
 
         const fetchMyServices = async () => {
             try {
@@ -808,9 +885,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (addServiceForm) {
             addServiceForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const formData = new FormData(addServiceForm);
+                
+                const selectedServiceName = serviceSearchInput.value;
+                const matchedService = relevantServices.find(s => s.name === selectedServiceName);
+
+                // If not in list, we pass the NAME as the service_id
+                // The backend model now detects strings vs numbers and creates a new service row if needed.
+                const serviceToSubmit = matchedService ? matchedService.id : selectedServiceName;
+
                 const data = {
-                    service_id: document.getElementById('service-id').value,
+                    service_id: serviceToSubmit,
                     price: document.getElementById('service-price').value
                 };
 
@@ -826,7 +910,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.ok) {
                     alert('Service added successfully!');
                     addServiceForm.reset();
-                    fetchMyServices();
+                    
+                    // Re-initialize to pick up any newly created global services
+                    await initManageServices();
+                    await fetchMyServices();
                 } else {
                     const err = await res.json();
                     alert('Error: ' + err.message);
@@ -834,6 +921,8 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
+        // --- MANDATORY: Call initialization functions ---
+        initManageServices();
         fetchMyServices();
     }
 });

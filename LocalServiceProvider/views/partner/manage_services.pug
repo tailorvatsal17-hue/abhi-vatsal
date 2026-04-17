@@ -5,16 +5,24 @@ block content
         div.table-header
             h2 <i class="fas fa-plus-circle"></i> Add Additional Service
         div(style="padding: 1.5rem;")
+            //- Changed static text to a dropdown for category selection
+            div#partner-category-info(style="margin-bottom: 1.5rem; padding: 1rem; background: #eef2ff; border-radius: 12px; border-left: 5px solid var(--primary-color); display: flex; align-items: center; gap: 1rem;")
+                label(for="category-select" style="font-weight: 700; color: #3730a3; white-space: nowrap;") Your Professional Category: 
+                select#category-select(style="flex: 1; padding: 0.6rem; border-radius: 8px; border: 1px solid #cbd5e1; font-weight: 700; color: var(--primary-color); cursor: pointer; background: white;")
+                    option(value="") Loading categories...
+
             form#add-partner-service-form
                 div.form-group
-                    label(for="service-id") Select Service
-                    select#service-id(name="service_id", required)
-                        if services
-                            each service in services
-                                option(value=service.id)= service.name
+                    label(for="service-search-input") Search & Select Service
+                    input#service-search-input(type="text", list="relevant-services-list", placeholder="Start typing a service name...", required)
+                    datalist#relevant-services-list
+                    //- Hidden input to store the actual service_id
+                    input(type="hidden", id="service-id", name="service_id")
+                
                 div.form-group
                     label(for="service-price") Custom Pricing for this Service (£)
                     input(type="number", id="service-price", name="price", step="0.01", required, placeholder="e.g. 75.00")
+                
                 button.button.button-primary(type="submit", style="width: 100%;") 
                     i.fas.fa-plus
                     span Add to My Services

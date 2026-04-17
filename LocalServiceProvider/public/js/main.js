@@ -309,20 +309,28 @@ document.addEventListener('DOMContentLoaded', async () => {
                         const partnerDiv = document.createElement('div');
                         partnerDiv.classList.add('partner-card-new');
                         
-                        // Robust Image Mapping
+                        // Robust & Diverse Image Mapping
                         const imgMap = {
-                            'plumb': 'https://images.unsplash.com/photo-1607472586893-edb57cbceb42?w=500&h=500&fit=crop',
-                            'electric': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=500&h=500&fit=crop',
-                            'clean': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=500&h=500&fit=crop',
-                            'paint': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=500&h=500&fit=crop',
-                            'pest': 'https://images.unsplash.com/photo-1599598425947-3300262b704c?w=500&h=500&fit=crop',
-                            'hvac': 'https://images.unsplash.com/photo-1621905252507-b35492d90fa6?w=500&h=500&fit=crop',
-                            'carpentr': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=500&h=500&fit=crop',
-                            'appliance': 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?w=500&h=500&fit=crop'
+                            'plumb': 'https://images.unsplash.com/photo-1505798577917-a65157d3320a?w=400&h=400&fit=crop',
+                            'electric': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=400&h=400&fit=crop',
+                            'clean': 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=400&fit=crop',
+                            'paint': 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400&h=400&fit=crop',
+                            'pest': 'https://images.unsplash.com/photo-1590682680695-43b964a3ae17?w=400&h=400&fit=crop',
+                            'hvac': 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop',
+                            'ac': 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop',
+                            'air': 'https://images.unsplash.com/photo-1621905251918-48416bd8575a?w=400&h=400&fit=crop',
+                            'carpentr': 'https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=400&h=400&fit=crop',
+                            'appliance': 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=400&fit=crop',
+                            'garden': 'https://images.unsplash.com/photo-1592419044706-39796d40f98c?w=400&h=400&fit=crop',
+                            'beauty': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=400&fit=crop',
+                            'salon': 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=400&h=400&fit=crop',
+                            'car': 'https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=400&h=400&fit=crop',
+                            'repair': 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=400&h=400&fit=crop',
+                            'home': 'https://images.unsplash.com/photo-1513584684031-43d1c2510103?w=400&h=400&fit=crop'
                         };
                         const catKey = (partner.category_name || '').toLowerCase();
                         const matchedKey = Object.keys(imgMap).find(k => catKey.includes(k));
-                        const defaultProImg = 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?w=500&h=500&fit=crop';
+                        const defaultProImg = 'https://images.unsplash.com/photo-1581578731522-a2047a2aa988?w=400&h=400&fit=crop';
                         
                         const profileImg = (partner.profile_image && partner.profile_image.includes('http')) 
                             ? partner.profile_image 
@@ -425,7 +433,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const input = form.querySelector('input');
             if (input) {
                 const keyword = input.value;
-                window.location.href = `/partners?search=${encodeURIComponent(keyword)}`;
+                window.location.href = `/services?search=${encodeURIComponent(keyword)}`;
             }
         });
     });
