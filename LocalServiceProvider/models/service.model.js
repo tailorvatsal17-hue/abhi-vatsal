@@ -21,22 +21,32 @@ Service.getAll = (result) => {
 };
 
 Service.search = (filters, result) => {
-    // 1. Check if 'rating' column exists in partners table to avoid SQL errors
+    // 1. Get schema of both tables to avoid 'Unknown column' errors
     sql.query("SHOW COLUMNS FROM partners", (err, pCols) => {
         if (err) {
-            console.error("Search Initialization Error:", err);
+            console.error("Search Schema Error (Partners):", err);
             result(err, null);
             return;
         }
 
-        const hasRating = pCols.some(c => c.Field === 'rating');
-        const ratingField = hasRating ? "p.rating" : "0";
+        sql.query("SHOW COLUMNS FROM services", (err, sCols) => {
+            if (err) {
+                console.error("Search Schema Error (Services):", err);
+                result(err, null);
+                return;
+            }
 
-        // 2. Check if 'partner_services' table exists
-        sql.query("SHOW TABLES LIKE 'partner_services'", (err, tables) => {
-            const hasExtraTable = !err && tables && tables.length > 0;
+            const pFields = pCols.map(c => c.Field);
+            const sFields = sCols.map(c => c.Field);
+
+            // Dynamic Column Selection
+            const ratingCol = pFields.includes('rating') ? "p.rating" : "0 AS rating";
+            const approvedCol = pFields.includes('is_approved') ? "p.is_approved" : (pFields.includes('status') ? "p.status" : "1");
+            const approvedVal = pFields.includes('is_approved') ? "1" : (pFields.includes('status') ? "'approved'" : "1");
+            const profileImgCol = pFields.includes('profile_image') ? "p.profile_image" : "NULL AS profile_image";
             
-            // Base query for primary services
+            const categoryIdCol = sFields.includes('category_id') ? "s.category_id" : "NULL AS category_id";
+
             const baseQuery = `
                 SELECT 
                     s.name AS service_name, 
@@ -44,74 +54,47 @@ Service.search = (filters, result) => {
                     p.description, 
                     p.pricing, 
                     p.id, 
-                    p.profile_image, 
+                    ${profileImgCol}, 
                     p.service_id, 
-                    s.category_id, 
+                    ${categoryIdCol}, 
                     sc.name AS category_name, 
-                    ${ratingField} AS rating
+                    ${ratingCol}
                 FROM services s
                 INNER JOIN partners p ON s.id = p.service_id
-                LEFT JOIN service_categories sc ON s.category_id = sc.id
-                WHERE p.is_approved = 1
+                LEFT JOIN service_categories sc ON ${sFields.includes('category_id') ? 's.category_id = sc.id' : '0=1'}
+                WHERE ${approvedCol} = ${approvedVal}
             `;
-            
-            let fullQuery = "";
-            if (hasExtraTable) {
-                // UNION with additional services if the table exists
-                const secondaryQuery = `
-                    SELECT 
-                        s.name AS service_name, 
-                        p.name AS partner_name, 
-                        ps.description, 
-                        CAST(ps.price AS CHAR) as pricing, 
-                        p.id, 
-                        p.profile_image, 
-                        ps.service_id, 
-                        s.category_id, 
-                        sc.name AS category_name, 
-                        ${ratingField} AS rating
-                    FROM partner_services ps
-                    JOIN partners p ON ps.partner_id = p.id
-                    JOIN services s ON ps.service_id = s.id
-                    LEFT JOIN service_categories sc ON s.category_id = sc.id
-                    WHERE p.is_approved = 1
-                `;
-                fullQuery = `SELECT * FROM (${baseQuery} UNION ALL ${secondaryQuery}) as combined WHERE 1=1`;
-            } else {
-                fullQuery = `SELECT * FROM (${baseQuery}) as combined WHERE 1=1`;
-            }
 
+            let query = `SELECT * FROM (${baseQuery}) as combined WHERE 1=1`;
             let params = [];
 
-            // Filter by Keyword (Service name or Professional name)
             if (filters.keyword) {
-                fullQuery += " AND (LOWER(service_name) LIKE LOWER(?) OR LOWER(partner_name) LIKE LOWER(?) OR LOWER(category_name) LIKE LOWER(?) OR service_name SOUNDS LIKE ?)";
+                query += " AND (LOWER(service_name) LIKE LOWER(?) OR LOWER(partner_name) LIKE LOWER(?) OR LOWER(category_name) LIKE LOWER(?) OR LOWER(description) LIKE LOWER(?))";
                 const searchTerm = `%${filters.keyword}%`;
-                params.push(searchTerm, searchTerm, searchTerm, filters.keyword);
+                params.push(searchTerm, searchTerm, searchTerm, searchTerm);
             }
 
-            // Filter by Category
             if (filters.category_id) {
+                // If numeric, match category_id, otherwise match category_name
                 if (!isNaN(filters.category_id) && filters.category_id !== "") {
-                    fullQuery += " AND category_id = ?";
+                    query += " AND category_id = ?";
                     params.push(filters.category_id);
                 } else if (filters.category_id !== "") {
-                    fullQuery += " AND LOWER(category_name) = LOWER(?)";
+                    query += " AND LOWER(category_name) = LOWER(?)";
                     params.push(filters.category_id);
                 }
             }
 
-            // Filter by specific Service
             if (filters.service_id) {
-                fullQuery += " AND service_id = ?";
+                query += " AND service_id = ?";
                 params.push(filters.service_id);
             }
 
-            fullQuery += " ORDER BY rating DESC";
+            query += " ORDER BY rating DESC";
 
-            sql.query(fullQuery, params, (err, res) => {
+            sql.query(query, params, (err, res) => {
                 if (err) {
-                    console.error("Database Search Error:", err);
+                    console.error("SQL Execution Error in Search:", err);
                     result(err, null);
                     return;
                 }
